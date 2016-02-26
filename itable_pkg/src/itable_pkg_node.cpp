@@ -100,7 +100,7 @@ namespace itable
             for( int i = 0; i < contours2.size(); i++ )
                 convexHull( contours2[i], convex_hulls[i], false );
 
-            //TODO make as function? projectpoint to
+            //TODO make as function? projectpoint to projector space
 
         }
 
