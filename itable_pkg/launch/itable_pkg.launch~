@@ -1,0 +1,13 @@
+<launch>
+
+  <arg name="topics_quality"    default="qhd"/>
+  <arg name="package_dir_path"  default="$(find itable_pkg)/data"/>
+  <arg name="marker_path" 		default="$(find itable_pkg)/data/marker.jpg"/>
+  
+  <node pkg="itable_pkg" type="itable_pkg_node" name="itable_pkg" output="screen">
+	<param name="topics_quality"    type="str"    value="$(arg topics_quality)"/>
+    <param name="package_dir_path"  type="str"    value="$(arg package_dir_path)"/>
+    <param name="marker_path"       type="str"    value="$(arg marker_path)"/>
+  </node>
+  
+</launch>
