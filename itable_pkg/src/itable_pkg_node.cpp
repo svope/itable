@@ -33,7 +33,7 @@ namespace itable
 
         // Publish
         proj_cam_data_pub = node_handle.advertise<itable_pkg::proj_cam_data>("projector_camera_data",1);
-        marker_pub    = node_handle.advertise<itable_pkg::marker_location>("marker_data",1);
+        marker_pub        = node_handle.advertise<itable_pkg::marker_location>("marker_data",1);
         mask_pub          = node_handle.advertise<itable_pkg::mask>("mask_data",1);
         objects_pub       = node_handle.advertise<itable_pkg::objects>("objects_data",10);
 
@@ -53,7 +53,41 @@ namespace itable
         if ( recalculate_marker_pos )
         {
             find_marker(rgb_img, depth_img);
+
+            cv::Point2f uno,dos,tres;
+            uno = cv::Point2f(887,1070);
+            dos = cv::Point2f(1434,625);
+            tres = cv::Point2f(791,322);
+
+            std::vector<cv::Point2f> marker_points,camera_points;
+
+            marker_points.push_back( uno );
+            marker_points.push_back( dos );
+            marker_points.push_back( tres );
+
+            perspectiveTransform( marker_points, camera_points, marker_homography);
+
+            circle(rgb_img, camera_points[0], 5.0, cv::Scalar(255,0,0,255));
+            circle(rgb_img, camera_points[1], 5.0f, cv::Scalar(255,0,0,255));
+            circle(rgb_img, camera_points[2], 5.0f, cv::Scalar(255,0,0,255));
+
+            for ( int i = 0; i < huggs.size(); i++)
+                cv::drawContours( rgb_img, huggs, i, cv::Scalar(255,0,0,255) );
+
+            cv::namedWindow( "RGB with circles", cv::WINDOW_AUTOSIZE );
+            cv::imshow( "RGB with circles", rgb_img );
+            cv::waitKey(0);
+
             //TODO Nalezt depth markeru ve scene pomoci depth_img
+        }
+
+        if ( true ) // draw convex hulls
+        {
+
+
+
+
+
         }
 
 
@@ -112,13 +146,32 @@ namespace itable
         int width  = cloud_ptr->width;
         int height = cloud_ptr->height;
         cv::Mat points_to_mask(width, height, CV_8UC1, cv::Scalar(0));
+
+        std::vector<cv::Point3f> mask_points;
+        std::vector<cv::Point2f> projected_points;
+
+        for ( int i = 0; i < removed_indices->size(); i++)
+        {
+            pcl::PointXYZ point = cloud_ptr->at( (*removed_indices)[i] );
+            mask_points.push_back( cv::Point3f(point.x,point.y,point.z));
+        }
+
+        // Mask points projected to projector space
+        cv::projectPoints(mask_points, rot_vec, trans_vec, proj_cam_mat, dist_coeffs, projected_points);
+
+        for ( int i = 0; i < projected_points.size(); i++)
+        {
+            points_to_mask.at<uchar>( projected_points[i].x, projected_points[i].y) = 255;
+        }
+
         //pcl::IndicesConstPtr removed_indices = pass_through.getRemovedIndices();
         // Making black & white image for further processing
+        /*
         for ( int i = 0; i < removed_indices->size(); i++)
         {
             points_to_mask.at<uchar>( (*removed_indices)[i] / width, (*removed_indices)[i] % height) = 255;
         }
-
+        */
         std::vector< std::vector< cv::Point> > contours;
         findContours(points_to_mask, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 
@@ -129,10 +182,12 @@ namespace itable
             if ( contours[i].size() > 60)
                 contours2.push_back(contours[i]);
 
-        std::vector< std::vector<int> > convex_hulls (contours2.size());
+        std::vector< std::vector<cv::Point> > convex_hulls (contours2.size());
 
         for( int i = 0; i < contours2.size(); i++ )
-            convexHull( contours2[i], convex_hulls[i], false );
+            convexHull( contours2[i], convex_hulls[i], true );
+
+        huggs = convex_hulls;
 
         //TODO make as function? projectpoint to projector space.
 
@@ -140,8 +195,24 @@ namespace itable
 
     void itable_service::caminfo_callback(const sensor_msgs::CameraInfo& msg_camerainfo)
     {
+        if ( cam_info_set )
+            return;
 
+        cam_intrinsic = cv::Mat(3,3,CV_64F,cvScalar(0.));
+        double *ptrI = cam_intrinsic.ptr<double>(0, 0);
 
+        for ( int i = 0; i < 9 ; i++, ptrI++)
+            *ptrI = msg_camerainfo.K[i];
+
+        // Expecting plum bob model -> 5 parameters
+        cam_dist_coeffs = cv::Mat(5,1,CV_64F, cvScalar(0.));
+        double *ptrD = cam_dist_coeffs.ptr<double>(0);
+
+        for ( int i = 0; i < 5; i++, ptrD++)
+            *ptrD = msg_camerainfo.D[i];
+
+        cam_info_set = true;
+        ROS_INFO("Camera intrinsic and dist_coeffs loaded from CameraInfo");
     }
 
     void itable_service::publish_proj_cam()
@@ -330,6 +401,42 @@ namespace itable
         marker_depth = depth;
 
         ROS_INFO("Marker found with depth = %f mm",marker_depth);
+    }
+
+    cv::Point2f itable_service::project3D_to_pixel(cv::Point3f point3D)
+    {
+        if ( !cam_info_set )
+            return cv::Point2f();
+
+        float fx     = 1.f / cam_intrinsic.at<double>(0,0);
+        float fy     = 1.f / cam_intrinsic.at<double>(1,1);
+        float cx     = cam_intrinsic.at<double>(0,2);
+        float cy     = cam_intrinsic.at<double>(1,2);
+        float factor = 1.f/1000.f;
+
+        float dist = point3D.z * factor;
+        float X    = (point3D.x * fx * dist) + cx;
+        float Y    = (point3D.y * fy * dist) + cy;
+
+        return cv::Point2f(X,Y);
+    }
+
+    cv::Point3f itable_service::backproject_pixel_to_3D( cv:: Point2f cam_2D, float depth)
+    {
+        if ( !cam_info_set )
+            return cv::Point3f();
+
+        float fx     = 1.f / cam_intrinsic.at<double>(0,0);
+        float fy     = 1.f / cam_intrinsic.at<double>(1,1);
+        float cx     = cam_intrinsic.at<double>(0,2);
+        float cy     = cam_intrinsic.at<double>(1,2);
+        float factor = 1.f/1000.f;
+
+        float dist = depth * factor;
+        float X    = (cam_2D.x - cx) * dist * fx;
+        float Y    = (cam_2D.y - cy) * dist * fy;
+
+        return cv::Point3f(X,Y,dist);
     }
 
 }

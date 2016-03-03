@@ -95,8 +95,15 @@ public:
 
 private:
 
+
+    // TEMP
+    std::vector< std::vector<cv::Point> > huggs;
+
     ros::NodeHandle node_handle;
     ros::NodeHandle private_handle { ros::NodeHandle("~") };
+
+    // Calibration data of Camera
+    cv::Mat cam_intrinsic, cam_dist_coeffs;
 
     // Calibration data for Projector-Camera system
     cv::Mat proj_cam_mat,dist_coeffs,rot_vec,trans_vec;
@@ -107,19 +114,20 @@ private:
     cv::Mat marker_homography;
     cv::Mat marker_img;
     std::string marker_path;
-    bool marker_loaded {false};
     float marker_depth;
 
     // Mask
     itable_pkg::mask mask_msg;
     std::vector<int> convex_hull_points;
-    bool recalculate_mask_flag {false};
 
     // Objects in point-cloud
     std::vector<object> objects;
 
     // Flags
     bool recalculate_marker_pos { false };
+    bool recalculate_mask_flag {false};
+    bool marker_loaded {false};
+    bool cam_info_set {false};
 
     // Launch arguments
     std::string package_dir_path;
@@ -152,6 +160,8 @@ private:
     void publish_objects();
     void find_marker(cv::Mat& rgb_img, cv::Mat& depth_img);
     void recalculate_mask( pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr, pcl::IndicesConstPtr removed_indices);
+    cv::Point2f project3D_to_pixel(cv::Point3f point3D);
+    cv::Point3f backproject_pixel_to_3D( cv:: Point2f, float depth);
 
 };
 
