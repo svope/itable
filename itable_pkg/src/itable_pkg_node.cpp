@@ -33,7 +33,7 @@ namespace itable
 
         // Publish
         proj_cam_data_pub = node_handle.advertise<itable_pkg::proj_cam_data>("projector_camera_data",1);
-        homography_pub    = node_handle.advertise<itable_pkg::marker_location>("marker_data",1);
+        marker_pub    = node_handle.advertise<itable_pkg::marker_location>("marker_data",1);
         mask_pub          = node_handle.advertise<itable_pkg::mask>("mask_data",1);
         objects_pub       = node_handle.advertise<itable_pkg::objects>("objects_data",10);
 
@@ -50,9 +50,9 @@ namespace itable
         cv::Mat rgb_img = cv_bridge::toCvShare(msg_rgb, "bgr8")->image;
         cv::Mat depth_img = cv_bridge::toCvShare(msg_depth, "bgr8")->image;
 
-        if ( recalculate_homography )
+        if ( recalculate_marker_pos )
         {
-            find_homography(rgb_img);
+            find_marker(rgb_img, depth_img);
             //TODO Nalezt depth markeru ve scene pomoci depth_img
         }
 
@@ -73,8 +73,10 @@ namespace itable
         pass_through.setFilterLimits (1.3, 1.7);
         pass_through.filter (*after_passthrough);
 
-        if ( recalculate_mask )
+        if ( recalculate_mask_flag )
         {
+            recalculate_mask( cloud_ptr, pass_through.getRemovedIndices() );
+            /*
             int width  = cloud_ptr->width;
             int height = cloud_ptr->height;
             cv::Mat points_to_mask(width, height, CV_8UC1, cv::Scalar(0));
@@ -101,11 +103,40 @@ namespace itable
                 convexHull( contours2[i], convex_hulls[i], false );
 
             //TODO make as function? projectpoint to projector space.
-
+*/
         }
-
     }
 
+    void itable_service::recalculate_mask( pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr, pcl::IndicesConstPtr removed_indices)
+    {
+        int width  = cloud_ptr->width;
+        int height = cloud_ptr->height;
+        cv::Mat points_to_mask(width, height, CV_8UC1, cv::Scalar(0));
+        //pcl::IndicesConstPtr removed_indices = pass_through.getRemovedIndices();
+        // Making black & white image for further processing
+        for ( int i = 0; i < removed_indices->size(); i++)
+        {
+            points_to_mask.at<uchar>( (*removed_indices)[i] / width, (*removed_indices)[i] % height) = 255;
+        }
+
+        std::vector< std::vector< cv::Point> > contours;
+        findContours(points_to_mask, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+
+        std::vector< std::vector< cv::Point> > contours2;
+
+        // Reducing amount of contours...
+        for( int i = 0; i < contours.size(); i++ )
+            if ( contours[i].size() > 60)
+                contours2.push_back(contours[i]);
+
+        std::vector< std::vector<int> > convex_hulls (contours2.size());
+
+        for( int i = 0; i < contours2.size(); i++ )
+            convexHull( contours2[i], convex_hulls[i], false );
+
+        //TODO make as function? projectpoint to projector space.
+
+    }
 
     void itable_service::caminfo_callback(const sensor_msgs::CameraInfo& msg_camerainfo)
     {
@@ -118,7 +149,7 @@ namespace itable
         proj_cam_data_pub.publish( proj_cam_msg );
     }
 
-    void itable_service::publish_homography()
+    void itable_service::publish_marker()
     {
         marker_msg.header.stamp = ros::Time::now();
 
@@ -128,7 +159,7 @@ namespace itable
 
         marker_msg.depth = marker_depth;
 
-        homography_pub.publish( marker_msg );
+        marker_pub.publish( marker_msg );
     }
 
     void itable_service::publish_mask()
@@ -156,7 +187,7 @@ namespace itable
     void itable_service::publish_all()
     {
         publish_proj_cam();
-        publish_homography();
+        publish_marker();
         publish_mask();
         publish_objects();
     }
@@ -230,7 +261,7 @@ namespace itable
 
     }
 
-    void itable_service::find_homography(cv::Mat& rgb_img)
+    void itable_service::find_marker(cv::Mat& rgb_img, cv::Mat& depth_img)
     {
         // Check if marker image is successfully loaded
         if ( !marker_loaded )
@@ -281,6 +312,24 @@ namespace itable
         }
 
         marker_homography = cv::findHomography( obj, scene);//, CV_RANSAC );
+
+        std::vector<cv::Point2f> marker_points,camera_points;
+        // add 3 random points
+        marker_points.push_back( cv::Point2f( 1081, 914 ) );
+        marker_points.push_back( cv::Point2f( 612,  1448) );
+        marker_points.push_back( cv::Point2f( 324,  612 ) );
+
+        perspectiveTransform( marker_points, camera_points, marker_homography);
+
+        float depth = depth_img.at<unsigned short>(camera_points[0].y,camera_points[0].x)
+                +     depth_img.at<unsigned short>(camera_points[1].y,camera_points[1].x)
+                +     depth_img.at<unsigned short>(camera_points[2].y,camera_points[2].x);
+
+        depth = depth / 3.0;
+
+        marker_depth = depth;
+
+        ROS_INFO("Marker found with depth = %f mm",marker_depth);
     }
 
 }

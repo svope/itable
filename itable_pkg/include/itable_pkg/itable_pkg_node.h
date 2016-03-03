@@ -113,13 +113,13 @@ private:
     // Mask
     itable_pkg::mask mask_msg;
     std::vector<int> convex_hull_points;
-    bool recalculate_mask {false};
+    bool recalculate_mask_flag {false};
 
     // Objects in point-cloud
     std::vector<object> objects;
 
     // Flags
-    bool recalculate_homography { false };
+    bool recalculate_marker_pos { false };
 
     // Launch arguments
     std::string package_dir_path;
@@ -136,7 +136,7 @@ private:
 
     // Publishers
     ros::Publisher proj_cam_data_pub;
-    ros::Publisher homography_pub;
+    ros::Publisher marker_pub;
     ros::Publisher mask_pub;
     ros::Publisher objects_pub;
 
@@ -147,10 +147,11 @@ private:
 
     // Functions
     void publish_proj_cam();
-    void publish_homography();
+    void publish_marker();
     void publish_mask();
     void publish_objects();
-    void find_homography(cv::Mat& rgb_img);
+    void find_marker(cv::Mat& rgb_img, cv::Mat& depth_img);
+    void recalculate_mask( pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr, pcl::IndicesConstPtr removed_indices);
 
 };
 
