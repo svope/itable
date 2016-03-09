@@ -1,11 +1,25 @@
 #include "itable_pkg/itable_pkg_node.h"
 
-
+#define TEST
 namespace itable
 {
     itable_service::itable_service()
     {
         marker_homography = cv::Mat(3,3, CV_64F, cvScalar(0.));
+
+
+#ifdef TEST
+        cv::FileStorage fs("/home/petr/Desktop/pkg/src/iai_kinect2/kinect2_bridge/data/000393642047/calib_color.yaml", cv::FileStorage::READ);
+        cv::Mat testCM,testDC;
+        fs["cameraMatrix"] >> testCM ;
+                fs["distortionCoefficients"] >> testDC;
+                fs.release();
+                cam_info_set = true;
+                cam_intrinsic = testCM;
+                cam_dist_coeffs = testDC;
+#endif
+
+
     }
 
     itable_service::~itable_service()
@@ -17,7 +31,7 @@ namespace itable
     void itable_service::ros_init()
     {
         // Subscribe
-        depth_sub.subscribe(node_handle, "/kinect2/qhd/depth_color_rect", 1);
+        depth_sub.subscribe(node_handle, "/kinect2/qhd/image_depth_rect", 1);
         rgb_sub.subscribe(node_handle, "/kinect2/qhd/image_color_rect",1);
         pointcloud_sub.subscribe(node_handle,"/kinect2/qhd/points",1);
         camerainfo_sub.subscribe(node_handle,"/kinect2/qhd/camera_info",1);
@@ -47,38 +61,32 @@ namespace itable
 
     void itable_service::image_callback(const sensor_msgs::ImageConstPtr& msg_rgb, const sensor_msgs::ImageConstPtr& msg_depth)
     {
-        cv::Mat rgb_img = cv_bridge::toCvShare(msg_rgb, "bgr8")->image;
-        cv::Mat depth_img = cv_bridge::toCvShare(msg_depth, "bgr8")->image;
+        ROS_INFO("new image_callback");
+        cv::Mat rgb_img = cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image;
+        cv::Mat depth_img = cv_bridge::toCvCopy(msg_depth)->image;
+	
+        //cv::imwrite("/home/artable/closest.bmp",rgb_img);
 
         if ( recalculate_marker_pos )
         {
             find_marker(rgb_img, depth_img);
 
             cv::Point2f uno,dos,tres;
-            uno = cv::Point2f(887,1070);
-            dos = cv::Point2f(1434,625);
-            tres = cv::Point2f(791,322);
+            uno = cv::Point2f(273,227);
 
             std::vector<cv::Point2f> marker_points,camera_points;
 
             marker_points.push_back( uno );
-            marker_points.push_back( dos );
-            marker_points.push_back( tres );
 
             perspectiveTransform( marker_points, camera_points, marker_homography);
 
             circle(rgb_img, camera_points[0], 5.0, cv::Scalar(255,0,0,255));
-            circle(rgb_img, camera_points[1], 5.0f, cv::Scalar(255,0,0,255));
-            circle(rgb_img, camera_points[2], 5.0f, cv::Scalar(255,0,0,255));
-
-            for ( int i = 0; i < huggs.size(); i++)
-                cv::drawContours( rgb_img, huggs, i, cv::Scalar(255,0,0,255) );
 
             cv::namedWindow( "RGB with circles", cv::WINDOW_AUTOSIZE );
             cv::imshow( "RGB with circles", rgb_img );
+		
             cv::waitKey(0);
 
-            //TODO Nalezt depth markeru ve scene pomoci depth_img
         }
 
         if ( true ) // draw convex hulls
@@ -96,6 +104,7 @@ namespace itable
 
     void itable_service::pointcloud_callback(const sensor_msgs::PointCloud2ConstPtr& msg_pointcloud,const sensor_msgs::ImageConstPtr& msg_rgb)
     {
+        ROS_INFO("Pointcloud callback");
         pcl::PointCloud<pcl::PointXYZ>::Ptr  cloud_ptr ( new pcl::PointCloud<pcl::PointXYZ> );
         pcl::PointCloud<pcl::PointXYZ>::Ptr  after_passthrough ( new pcl::PointCloud<pcl::PointXYZ> );
         pcl::fromROSMsg (*msg_pointcloud, *cloud_ptr);
@@ -104,48 +113,163 @@ namespace itable
         pcl::PassThrough<pcl::PointXYZ> pass_through(true);
         pass_through.setInputCloud (cloud_ptr);
         pass_through.setFilterFieldName ("z");
-        pass_through.setFilterLimits (1.3, 1.7);
+
+        if ( marker_found_valid )
+            pass_through.setFilterLimits ( marker_depth / 1000.0, marker_depth / 1000.0 + 0.25);
+        else
+            pass_through.setFilterLimits (1.2, 1.5);
         pass_through.filter (*after_passthrough);
 
-        if ( recalculate_mask_flag )
+#ifdef TEST_1
+        std::vector<cv::Point2f> points;
+        for( int i =0; i < after_passthrough->size(); i++)
         {
-            recalculate_mask( cloud_ptr, pass_through.getRemovedIndices() );
-            /*
-            int width  = cloud_ptr->width;
-            int height = cloud_ptr->height;
-            cv::Mat points_to_mask(width, height, CV_8UC1, cv::Scalar(0));
-            pcl::IndicesConstPtr removed_indices = pass_through.getRemovedIndices();
-            // Making black & white image for further processing
-            for ( int i = 0; i < removed_indices->size(); i++)
+            points.push_back(project3D_to_pixel(cv::Point3f((*after_passthrough)[i].x,(*after_passthrough)[i].y,(*after_passthrough)[i].z)));
+        }
+
+
+        cv::Mat rgb_img = cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image;
+        for ( int i = 0;i < points.size(); i++)
+        {
+            circle(rgb_img, points[i], 0.5, cv::Scalar(255,0,0,255));
+        }
+
+        cv::namedWindow( "RGB with circles", cv::WINDOW_AUTOSIZE );
+        cv::resizeWindow("RGB with circles", 1024, 768);
+        cv::imshow( "RGB with circles", rgb_img );
+        cv::resizeWindow("RGB with circles", 1024, 768);
+
+        cv::waitKey(0);
+#endif
+        if ( !recalculate_mask_flag )
+        {
+            //recalculate_mask( cloud_ptr, pass_through.getRemovedIndices() );
+        }
+
+        if ( !find_object )
+        {
+            pcl::PointCloud<pcl::PointXYZ>::Ptr  cloud_without_plane ( new pcl::PointCloud<pcl::PointXYZ> );
+
+            // Create the segmentation object
+            pcl::SACSegmentation<pcl::PointXYZ> seg;
+            pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
+            pcl::PointIndices::Ptr inliers (new pcl::PointIndices);
+            // Optional
+            seg.setOptimizeCoefficients (true);
+            // Mandatory
+            seg.setModelType (pcl::SACMODEL_PLANE);
+            seg.setMethodType (pcl::SAC_RANSAC);
+            seg.setDistanceThreshold (0.01);
+
+            seg.setInputCloud (after_passthrough);
+            seg.segment (*inliers, *coefficients);
+
+            if (inliers->indices.size () == 0)
             {
-                points_to_mask.at<uchar>( (*removed_indices)[i] / width, (*removed_indices)[i] % height) = 255;
+                ROS_INFO("Could not find planar model for this pointcloud. This could affect object recognition");
             }
 
-            std::vector< std::vector< cv::Point> > contours;
-            findContours(points_to_mask, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 
-            std::vector< std::vector< cv::Point> > contours2;
+            // Extract the inliers
+            pcl::ExtractIndices<pcl::PointXYZ> extract;
+            extract.setInputCloud (after_passthrough);
+            extract.setIndices (inliers);
+            extract.setNegative (true);
+            extract.filter (*cloud_without_plane);
 
-            // Reducing amount of contours...
-            for( int i = 0; i < contours.size(); i++ )
-                if ( contours[i].size() > 60)
-                    contours2.push_back(contours[i]);
+            // Creating the KdTree object for the search method of the extraction
+            pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+            tree->setInputCloud (cloud_without_plane);
 
-            std::vector< std::vector<int> > convex_hulls (contours2.size());
+            std::vector<pcl::PointIndices> cluster_indices;
 
-            for( int i = 0; i < contours2.size(); i++ )
-                convexHull( contours2[i], convex_hulls[i], false );
+            pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+            ec.setClusterTolerance (0.02); // 2cm
+            ec.setMinClusterSize (500);
+            ec.setMaxClusterSize (25000);
+            ec.setSearchMethod (tree);
+            ec.setInputCloud (cloud_without_plane);
+            ec.extract (cluster_indices);
 
-            //TODO make as function? projectpoint to projector space.
-*/
+            pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+            icp.setMaximumIterations (1);
+            //icp.setInputSource (cloud_box);
+            icp.setInputTarget (cloud_box);
+            //icp.align (*cloud_icp);
+            //icp.setMaximumIterations (1);  // We set this variable to 1 for the next time we will call .align () function
+            //std::cout << "Applied " << iterations << " ICP iteration(s) in " << time.toc () << " ms" << std::endl;
+
+            pcl::PointCloud<pcl::PointXYZ>::Ptr  cloud_lowest_score ( new pcl::PointCloud<pcl::PointXYZ> );
+
+            float min_score = 1.0;
+            std::string a ("a");
+            for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
+            {
+                pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
+                for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit)
+                    cloud_cluster->points.push_back (cloud_without_plane->points[*pit]);
+                cloud_cluster->width = cloud_cluster->points.size ();
+                cloud_cluster->height = 1;
+                cloud_cluster->is_dense = true;
+
+                pcl::io::savePCDFileASCII ("/home/petr/test_pcd" + a +".pcd", *cloud_cluster);
+
+                a.append("a");
+                pcl::PointCloud<pcl::PointXYZ>::Ptr  temp ( new pcl::PointCloud<pcl::PointXYZ> );
+                icp.setInputSource (cloud_cluster);
+
+                icp.align(*temp);
+
+                if (icp.hasConverged ())
+                {
+                    std::cout << "\nICP has converged, score is " << icp.getFitnessScore () << std::endl;
+                    if ( icp.getFitnessScore () < min_score )
+                    {
+                        //cloud_lowest_score.swap(cloud_cluster);
+                        cloud_lowest_score = cloud_cluster;
+                        min_score = icp.getFitnessScore ();
+                    }
+                }
+                else
+                    ROS_INFO("Object hasn't converged");
+
+            }
+
+            ROS_INFO("Min score is %f",min_score);
+            std::cout << cloud_lowest_score->size() << std::endl;
+
+            std::vector<cv::Point2f> points;
+            for( int i =0; i < cloud_lowest_score->size(); i++)
+            {
+                points.push_back(project3D_to_pixel(cv::Point3f((*cloud_lowest_score)[i].x,(*cloud_lowest_score)[i].y,(*cloud_lowest_score)[i].z)));
+                //std::cout << cv::Point3f((*cloud_lowest_score)[i].x,(*cloud_lowest_score)[i].y,(*cloud_lowest_score)[i].z) << std::endl;
+            }
+
+
+            cv::Mat rgb_img = cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image;
+            for ( int i = 0;i < points.size(); i++)
+            {
+                circle(rgb_img, points[i], 0.5, cv::Scalar(0,0,255,255));
+            }
+
+            cv::namedWindow( "RGB with circles", cv::WINDOW_AUTOSIZE );
+            cv::resizeWindow("RGB with circles", 1024, 768);
+            cv::imshow( "RGB with circles", rgb_img );
+            cv::resizeWindow("RGB with circles", 1024, 768);
+
+            cv::waitKey(0);
+
+
         }
+
+
     }
 
     void itable_service::recalculate_mask( pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr, pcl::IndicesConstPtr removed_indices)
     {
         int width  = cloud_ptr->width;
         int height = cloud_ptr->height;
-        cv::Mat points_to_mask(width, height, CV_8UC1, cv::Scalar(0));
+        cv::Mat points_to_mask(height, width, CV_8UC1, cv::Scalar(0));
 
         std::vector<cv::Point3f> mask_points;
         std::vector<cv::Point2f> projected_points;
@@ -153,17 +277,23 @@ namespace itable
         for ( int i = 0; i < removed_indices->size(); i++)
         {
             pcl::PointXYZ point = cloud_ptr->at( (*removed_indices)[i] );
-            mask_points.push_back( cv::Point3f(point.x,point.y,point.z));
+            if ( pcl::isFinite(point) )
+            	mask_points.push_back( cv::Point3f(point.x,point.y,point.z));
         }
 
         // Mask points projected to projector space
         cv::projectPoints(mask_points, rot_vec, trans_vec, proj_cam_mat, dist_coeffs, projected_points);
 
+
+	
         for ( int i = 0; i < projected_points.size(); i++)
         {
-            points_to_mask.at<uchar>( projected_points[i].x, projected_points[i].y) = 255;
+		//std::cout << projected_points[i].x << " " << projected_points[i].y << std::endl;
+		if ( projected_points[i].x < width && projected_points[i].y < height
+			&& projected_points[i].x > 0 && projected_points[i].y > 0 )
+            		points_to_mask.at<uchar>( projected_points[i].y, projected_points[i].x) = 255;
         }
-
+        std::cout << points_to_mask.size() <<std::endl;
         //pcl::IndicesConstPtr removed_indices = pass_through.getRemovedIndices();
         // Making black & white image for further processing
         /*
@@ -172,6 +302,7 @@ namespace itable
             points_to_mask.at<uchar>( (*removed_indices)[i] / width, (*removed_indices)[i] % height) = 255;
         }
         */
+
         std::vector< std::vector< cv::Point> > contours;
         findContours(points_to_mask, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 
@@ -179,11 +310,10 @@ namespace itable
 
         // Reducing amount of contours...
         for( int i = 0; i < contours.size(); i++ )
-            if ( contours[i].size() > 60)
+            if ( contours[i].size() > 1)
                 contours2.push_back(contours[i]);
 
         std::vector< std::vector<cv::Point> > convex_hulls (contours2.size());
-
         for( int i = 0; i < contours2.size(); i++ )
             convexHull( contours2[i], convex_hulls[i], true );
 
@@ -330,6 +460,17 @@ namespace itable
         else
             marker_loaded = true;
 
+
+
+        if (pcl::io::loadPCDFile<pcl::PointXYZ> (package_dir_path + "box.pcd", *cloud_box) == -1) //* load the file
+        {
+            ROS_ERROR ("Couldn't read file box.pcd in %s. Published box data will be invalid.",package_dir_path.c_str());
+        }
+        else
+            object_box_loaded = true;
+
+        ROS_INFO("Data from files loaded successfully");
+
     }
 
     void itable_service::find_marker(cv::Mat& rgb_img, cv::Mat& depth_img)
@@ -338,7 +479,7 @@ namespace itable
         if ( !marker_loaded )
             return;
         // Detect keypoint with SURF det.
-        cv::SurfFeatureDetector detector( 600 );
+        cv::SurfFeatureDetector detector( 800 );
         std::vector<cv::KeyPoint> keypoints_marker, keypoints_scene;
 
         detector.detect( marker_img, keypoints_marker );
@@ -357,7 +498,7 @@ namespace itable
         matcher.knnMatch( descriptors_marker, descriptors_scene, matches, 2 ); // find the 2 nearest neighbors
 
         std::vector< cv::DMatch > good_matches;
-        float nndrRatio = 0.40f;
+        float nndrRatio = 0.50f;
 
         for (size_t i = 0; i < matches.size(); ++i)
         {
@@ -371,6 +512,13 @@ namespace itable
                 good_matches.push_back(m1);
         }
 
+        if ( good_matches.size() < 4 ) // minimum points
+        {
+            ROS_INFO("Could not find marker in the scene. There are less than 4 matches. Published homography is NOT valid");
+            marker_found_valid = false;
+            return;
+        }
+
         //-- Localize the object
         std::vector<cv::Point2f> obj;
         std::vector<cv::Point2f> scene;
@@ -382,23 +530,32 @@ namespace itable
           scene.push_back( keypoints_scene[ good_matches[i].trainIdx ].pt );
         }
 
-        marker_homography = cv::findHomography( obj, scene);//, CV_RANSAC );
+
+
+        try
+        {
+            marker_homography = cv::findHomography( obj, scene);//, CV_RANSAC );
+        }
+        catch ( cv::Exception& e )
+        {
+            const char* err_msg = e.what();
+            ROS_ERROR("Couldn't find homography in function find_marker()");
+            ROS_ERROR("Caught OpenCV Exception: %s",err_msg);
+	    return;
+        }
+        
 
         std::vector<cv::Point2f> marker_points,camera_points;
         // add 3 random points
-        marker_points.push_back( cv::Point2f( 1081, 914 ) );
-        marker_points.push_back( cv::Point2f( 612,  1448) );
-        marker_points.push_back( cv::Point2f( 324,  612 ) );
+        marker_points.push_back( cv::Point2f( 300, 300 ) );
 
         perspectiveTransform( marker_points, camera_points, marker_homography);
 
-        float depth = depth_img.at<unsigned short>(camera_points[0].y,camera_points[0].x)
-                +     depth_img.at<unsigned short>(camera_points[1].y,camera_points[1].x)
-                +     depth_img.at<unsigned short>(camera_points[2].y,camera_points[2].x);
-
-        depth = depth / 3.0;
+        float depth = depth_img.at<unsigned short>(camera_points[0].y,camera_points[0].x);
 
         marker_depth = depth;
+
+        marker_found_valid = true;
 
         ROS_INFO("Marker found with depth = %f mm",marker_depth);
     }
@@ -408,15 +565,14 @@ namespace itable
         if ( !cam_info_set )
             return cv::Point2f();
 
-        float fx     = 1.f / cam_intrinsic.at<double>(0,0);
-        float fy     = 1.f / cam_intrinsic.at<double>(1,1);
-        float cx     = cam_intrinsic.at<double>(0,2);
-        float cy     = cam_intrinsic.at<double>(1,2);
-        float factor = 1.f/1000.f;
+        float fx     = cam_intrinsic.at<double>(0,0) / 2.0;
+        float fy     = cam_intrinsic.at<double>(1,1) / 2.0;
+        float cx     = cam_intrinsic.at<double>(0,2) / 2.0;
+        float cy     = cam_intrinsic.at<double>(1,2) / 2.0;
 
-        float dist = point3D.z * factor;
-        float X    = (point3D.x * fx * dist) + cx;
-        float Y    = (point3D.y * fy * dist) + cy;
+        float dist = point3D.z;
+        float X    = (point3D.x  * fx / dist) + cx;
+        float Y    = (point3D.y  * fy / dist) + cy;
 
         return cv::Point2f(X,Y);
     }
@@ -459,7 +615,7 @@ int main(int argc, char** argv)
     {
 
         itable.publish_all();
-
+	ros::spinOnce();
     }
 
 
