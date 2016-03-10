@@ -96,10 +96,6 @@ public:
 
 private:
 
-
-    // TEMP
-    std::vector< std::vector<cv::Point> > huggs;
-
     ros::NodeHandle node_handle;
     ros::NodeHandle private_handle { ros::NodeHandle("~") };
 
@@ -165,6 +161,9 @@ private:
     void publish_objects();
     void find_marker(cv::Mat& rgb_img, cv::Mat& depth_img);
     void recalculate_mask( pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr, pcl::IndicesConstPtr removed_indices);
+    void find_object_in_pointcloud(pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud,cv::Mat rgb_img);
+    void project3D_to_pixel( std::vector<cv::Point3d>& input_3D, std::vector<cv::Point2f>& output_2D );
+    void backproject_pixel_to_3D( std::vector<cv::Point3f>& input, std::vector<cv::Point3f>& output);
     cv::Point2f project3D_to_pixel(cv::Point3f point3D);
     cv::Point3f backproject_pixel_to_3D( cv:: Point2f, float depth);
 
