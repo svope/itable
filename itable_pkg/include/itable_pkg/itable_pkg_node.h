@@ -8,7 +8,8 @@
 #include "itable_pkg/objects.h"
 #include "itable_pkg/proj_cam_data.h"
 #include "itable_pkg/mask.h"
-#include "itable_pkg/convex_hull.h"
+#include "itable_pkg/hull_point.h"
+#include "itable_pkg/hull.h"
 
 #include "opencv2/core/core.hpp"
 #include <opencv2/highgui/highgui.hpp>
@@ -46,6 +47,10 @@
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl/registration/icp.h>
+#include <Eigen/Core>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/features/fpfh.h>
+#include <pcl/registration/ia_ransac.h>
 
 
 
@@ -70,10 +75,11 @@ typedef point_cloud::Ptr point_cloud_ptr;
 
 struct object
 {
-    float bounding_box[4];
-    float rgb[3];
-    float depth;
-    int type;
+    float center_x;
+    float center_y;
+    float width;
+    float height;
+    float angle;
 };
 
 
@@ -96,6 +102,13 @@ public:
 
 private:
 
+
+    //temp
+    //pcl::PointCloud<pcl::PointXYZ> PointCloud;
+    pcl::PointCloud<pcl::Normal>::Ptr box_normals;
+    pcl::PointCloud<pcl::FPFHSignature33>::Ptr box_features;
+    pcl::search::KdTree<pcl::PointXYZ>::Ptr box_search;
+
     ros::NodeHandle node_handle;
     ros::NodeHandle private_handle { ros::NodeHandle("~") };
 
@@ -114,19 +127,21 @@ private:
     float marker_depth;
 
     // Mask
-    itable_pkg::mask mask_msg;
-    std::vector<int> convex_hull_points;
+    unsigned int mask_id {0};
+    unsigned int last_mask_id {0};
+    std::vector< std::vector<cv::Point> > convex_hulls;
+    std::vector<cv::Point2f> mask_points;
 
     // Objects in point-cloud
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_box {new pcl::PointCloud<pcl::PointXYZ>};
     std::vector<object> objects;
 
     // Flags
-    bool recalculate_marker_pos { false };
-    bool recalculate_mask_flag {false};
+    bool recalculate_marker_pos { true};
+    bool recalculate_mask_flag {true};
     bool marker_loaded {false};
     bool cam_info_set {false};
-    bool find_object {false};
+    bool find_object {true};
     bool marker_found_valid {false};
     bool object_box_loaded {false};
 
@@ -160,8 +175,10 @@ private:
     void publish_mask();
     void publish_objects();
     void find_marker(cv::Mat& rgb_img, cv::Mat& depth_img);
-    void recalculate_mask( pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr, pcl::IndicesConstPtr removed_indices);
+    void recalculate_mask( pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mask);
+    void recalculate_mask2( pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mask, cv::Mat rgb_img);
     void find_object_in_pointcloud(pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud,cv::Mat rgb_img);
+    void find_object_in_pointcloud2(pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud,cv::Mat rgb_img);
     void project3D_to_pixel( std::vector<cv::Point3d>& input_3D, std::vector<cv::Point2f>& output_2D );
     void backproject_pixel_to_3D( std::vector<cv::Point3f>& input, std::vector<cv::Point3f>& output);
     cv::Point2f project3D_to_pixel(cv::Point3f point3D);

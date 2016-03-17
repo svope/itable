@@ -3,6 +3,8 @@
 #define LOAD_CALIB
 //#define IMG_CALLBACK
 //#define POINTCLOUD_CALLBACK
+//#define POINTCLOUD_CALLBACK1
+
 namespace itable
 {
     itable_service::itable_service()
@@ -99,6 +101,8 @@ namespace itable
         ROS_INFO("Pointcloud callback");
         pcl::PointCloud<pcl::PointXYZ>::Ptr  cloud_ptr ( new pcl::PointCloud<pcl::PointXYZ> );
         pcl::PointCloud<pcl::PointXYZ>::Ptr  after_passthrough ( new pcl::PointCloud<pcl::PointXYZ> );
+        pcl::PointCloud<pcl::PointXYZ>::Ptr  cloud_mask ( new pcl::PointCloud<pcl::PointXYZ> );
+
         pcl::fromROSMsg (*msg_pointcloud, *cloud_ptr);
 
         // Create the filtering object - threshold
@@ -112,12 +116,47 @@ namespace itable
             pass_through.setFilterLimits (1.2, 1.5);
         pass_through.filter (*after_passthrough);
 
+        float mask_min,mask_max;
+        pass_through.getFilterLimits (mask_min, mask_max);
+        pass_through.setFilterLimits(0.2,mask_min - 0.05);
+        pass_through.filter(*cloud_mask);
+
         if ( recalculate_mask_flag )
         {
-            recalculate_mask( cloud_ptr, pass_through.getRemovedIndices() );
+            recalculate_mask2( cloud_mask, cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image );
         }
 
-        if ( !find_object )
+
+#ifdef POINTCLOUD_CALLBACK1
+        cv::Mat proj = cv::Mat(800,1280, CV_8U, cvScalar(0.));
+        for ( int i =0;i < mask_points.size() ; i++)
+            proj.at<uchar>( mask_points[i].y,mask_points[i].x) = 255;
+
+        cv::imwrite("/home/petr/proj.bmp",proj);
+
+        std::vector<cv::Point2f> pointz;
+
+        for ( int i =0; i < cloud_mask->size() ;i++)
+            pointz.push_back( project3D_to_pixel(cv::Point3f((*cloud_mask)[i].x,(*cloud_mask)[i].y,(*cloud_mask)[i].z)));
+
+
+        cv::Mat rgb_img = cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image;
+        //rectangle(rgb_img, minAreaRect(points), cv::Scalar(0,0,255,255));
+        for ( int i = 0;i < pointz.size(); i++)
+        {
+            circle(rgb_img, pointz[i], 0.5, cv::Scalar(0,0,255,255));
+        }
+
+        cv::namedWindow( "RGB with circles", cv::WINDOW_AUTOSIZE );
+        cv::resizeWindow("RGB with circles", 1024, 768);
+        cv::imshow( "RGB with circles", rgb_img );
+        cv::resizeWindow("RGB with circles", 1024, 768);
+
+        cv::waitKey(0);
+
+#endif
+
+        if ( find_object )
         {
             find_object_in_pointcloud(after_passthrough,cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image);
         }
@@ -172,17 +211,20 @@ namespace itable
         pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
         ec.setClusterTolerance (0.01); // 2cm
         ec.setMinClusterSize (100);
-        ec.setMaxClusterSize (25000);
+        ec.setMaxClusterSize (400);
         ec.setSearchMethod (tree);
         ec.setInputCloud (cloud_without_plane);
         ec.extract (cluster_indices);
 
         pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-        icp.setMaximumIterations (1);
+        icp.setMaximumIterations (10);
+        // Set the max correspondence distance to 5cm (e.g., correspondences with higher distances will be ignored)
+        icp.setMaxCorrespondenceDistance (0.05);
         icp.setInputTarget (cloud_box);
+        //icp.setInputSource (cloud_box);
 
         pcl::PointCloud<pcl::PointXYZ>::Ptr  cloud_lowest_score ( new pcl::PointCloud<pcl::PointXYZ> );
-
+ROS_INFO("c");
         float min_score = 1.0;
         //std::string a ("a");
         for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
@@ -199,12 +241,14 @@ namespace itable
            // a.append("a");
             pcl::PointCloud<pcl::PointXYZ>::Ptr  temp ( new pcl::PointCloud<pcl::PointXYZ> );
             icp.setInputSource (cloud_cluster);
+            //icp.setInputTarget (cloud_cluster);
 
             icp.align(*temp);
 
             if (icp.hasConverged ())
             {
                 std::cout << "\nICP has converged, score is " << icp.getFitnessScore () << std::endl;
+                //std::cout << "number of points " << cloud_cluster->size() << " box "<< cloud_box->size()<<std::endl;
                 if ( icp.getFitnessScore () < min_score )
                 {
                     cloud_lowest_score = cloud_cluster;
@@ -217,21 +261,58 @@ namespace itable
         }
 
         ROS_INFO("Min score is %f",min_score);
-        std::cout << cloud_lowest_score->size() << std::endl;
+       // std::cout << cloud_lowest_score->size() << std::endl;
 
-        std::vector<cv::Point2f> points;
+        // Object found, now project it to projector space
+        std::vector<cv::Point3f> points;
+        std::vector<cv::Point2f> projected_points;
+
+        std::vector<cv::Point2f> boxx;
+
+        // Pointcloud of object
         for( int i =0; i < cloud_lowest_score->size(); i++)
         {
-            points.push_back(project3D_to_pixel(cv::Point3f((*cloud_lowest_score)[i].x,(*cloud_lowest_score)[i].y,(*cloud_lowest_score)[i].z)));
-            //std::cout << cv::Point3f((*cloud_lowest_score)[i].x,(*cloud_lowest_score)[i].y,(*cloud_lowest_score)[i].z) << std::endl;
+            points.push_back(cv::Point3f((*cloud_lowest_score)[i].x,(*cloud_lowest_score)[i].y,(*cloud_lowest_score)[i].z));
+            boxx.push_back( project3D_to_pixel(cv::Point3f((*cloud_lowest_score)[i].x,(*cloud_lowest_score)[i].y,(*cloud_lowest_score)[i].z)) );
         }
 
-#ifdef POINTCLOUD_CALLBACK
-
-        //cv::Mat rgb_img = cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image;
-        for ( int i = 0;i < points.size(); i++)
+        if ( min_score == 1.0f || points.empty())
         {
-            circle(rgb_img, points[i], 0.5, cv::Scalar(0,0,255,255));
+            ROS_INFO("Object not found in pointcloud");
+            objects.clear();
+            return;
+        }
+        try
+        {
+            // Project pointcloud to projector space
+            cv::projectPoints(points, rot_vec, trans_vec, proj_cam_mat, dist_coeffs, projected_points);
+        }
+        catch ( cv::Exception& e )
+        {
+            const char* err_msg = e.what();
+            ROS_ERROR("Calling cv::projectPoint failed");
+            ROS_ERROR("Caught OpenCV Exception: %s",err_msg);
+            return;
+        }
+
+        // Save object information and later publish
+        objects.clear();
+        object new_object;
+        cv::RotatedRect b_box   = minAreaRect(projected_points);
+        new_object.center_x     = b_box.center.x;
+        new_object.center_y     = b_box.center.y;
+        new_object.width        = b_box.size.width;
+        new_object.height       = b_box.size.height;
+        new_object.angle        = b_box.angle;
+
+        objects.push_back(new_object);
+
+#ifdef POINTCLOUD_CALLBACK
+        //cv::Mat rgb_img = cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image;
+        //rectangle(rgb_img, minAreaRect(points), cv::Scalar(0,0,255,255));
+        for ( int i = 0;i < boxx.size(); i++)
+        {
+            circle(rgb_img, boxx[i], 0.5, cv::Scalar(0,0,255,255));
         }
 
         cv::namedWindow( "RGB with circles", cv::WINDOW_AUTOSIZE );
@@ -239,33 +320,42 @@ namespace itable
         cv::imshow( "RGB with circles", rgb_img );
         cv::resizeWindow("RGB with circles", 1024, 768);
 
-        cv::waitKey(1);
+        cv::waitKey(0);
 
 #endif
     }
 
 
-    void itable_service::recalculate_mask( pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_ptr, pcl::IndicesConstPtr removed_indices)
+    void itable_service::recalculate_mask(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mask)
     {
-        int width  = cloud_ptr->width;
-        int height = cloud_ptr->height;
-        cv::Mat points_to_mask(height, width, CV_8UC1, cv::Scalar(0));
 
-        std::vector<cv::Point3f> mask_points;
+        std::vector<cv::Point3f> cloud_points;
         std::vector<cv::Point2f> projected_points;
 
-        for ( int i = 0; i < removed_indices->size(); i++)
+        for ( int i = 0; i < cloud_mask->size(); i++)
         {
-            pcl::PointXYZ point = cloud_ptr->at( (*removed_indices)[i] );
+            pcl::PointXYZ point = (*cloud_mask)[i];
             if ( pcl::isFinite(point) )
-            	mask_points.push_back( cv::Point3f(point.x,point.y,point.z));
+            {
+                cloud_points.push_back( cv::Point3f(point.x,point.y,point.z));
+                //std::cout << cv::Point3f(point.x,point.y,point.z) << std::endl;
+            }
         }
 
         // Mask points projected to projector space
-        cv::projectPoints(mask_points, rot_vec, trans_vec, proj_cam_mat, dist_coeffs, projected_points);
+        cv::projectPoints(cloud_points, rot_vec, trans_vec, proj_cam_mat, dist_coeffs, projected_points);
 
+        mask_points.clear();
+        for ( int i = 0; i < projected_points.size();i++)
+        {
+            if ( projected_points[i].x >=  0.0 && projected_points[i].y >= 0.0
+                 && projected_points[i].x <= 1280.0 && projected_points[i].y <= 800.0)
+                mask_points.push_back(projected_points[i]);
+        }
 
-	
+        mask_id++;
+
+        /*
         for ( int i = 0; i < projected_points.size(); i++)
         {
 		//std::cout << projected_points[i].x << " " << projected_points[i].y << std::endl;
@@ -276,12 +366,12 @@ namespace itable
         std::cout << points_to_mask.size() <<std::endl;
         //pcl::IndicesConstPtr removed_indices = pass_through.getRemovedIndices();
         // Making black & white image for further processing
-        /*
-        for ( int i = 0; i < removed_indices->size(); i++)
-        {
-            points_to_mask.at<uchar>( (*removed_indices)[i] / width, (*removed_indices)[i] % height) = 255;
-        }
-        */
+
+        //for ( int i = 0; i < removed_indices->size(); i++)
+        //{
+        //    points_to_mask.at<uchar>( (*removed_indices)[i] / width, (*removed_indices)[i] % height) = 255;
+       // }
+
 
         std::vector< std::vector< cv::Point> > contours;
         findContours(points_to_mask, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
@@ -296,9 +386,87 @@ namespace itable
         std::vector< std::vector<cv::Point> > convex_hulls (contours2.size());
         for( int i = 0; i < contours2.size(); i++ )
             convexHull( contours2[i], convex_hulls[i], true );
-
+        */
         //TODO make as function? projectpoint to projector space.
+        ROS_INFO("Mask recalculated");
+    }
 
+    void itable_service::recalculate_mask2(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mask, cv::Mat rgb_img)
+    {
+
+        //std::vector<cv::Point3f> cloud_points;
+        //std::vector<cv::Point2f> projected_points;
+        cv::Mat bw = cv::Mat(rgb_img.size().height,rgb_img.size().width, CV_8U, cvScalar(0.));
+
+        for ( int i = 0; i < cloud_mask->size(); i++)
+        {
+            pcl::PointXYZ point = (*cloud_mask)[i];
+            if ( pcl::isFinite(point) )
+            {
+                cv::Point2f p =  project3D_to_pixel(cv::Point3f(point.x,point.y,point.z));
+                if ( p.x < rgb_img.size().width && p.y < rgb_img.size().height
+                    && p.x > 0 && p.y > 0 )
+                            bw.at<uchar>( p.y, p.x) = 255;
+
+            }
+        }
+
+
+        cv::Mat bw2;
+        //cv::dilate(bw, bw2, cv::Mat::ones( 5, 5, CV_32F ));
+
+        cv::dilate(bw, bw2, cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(5,5)));
+/*
+        cv::namedWindow( "BW1", cv::WINDOW_AUTOSIZE );
+        cv::imshow( "BW1", bw);
+        cv::waitKey(0);
+
+        cv::namedWindow( "BW", cv::WINDOW_AUTOSIZE );
+        cv::imshow( "BW", bw2);
+        cv::resizeWindow("BW", 1024, 768);
+
+        cv::waitKey(0);
+*/
+        std::vector< std::vector< cv::Point> > contours;
+        findContours(bw2, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+
+        /*
+        std::vector< std::vector< cv::Point> > contours2;
+
+        // Reducing amount of contours...
+        for( int i = 0; i < contours.size(); i++ )
+        {
+            if ( contours[i].size() > 1)
+                contours2.push_back(contours[i]);
+        }
+        */
+
+
+        //std::vector< std::vector<cv::Point> > convex_hulls (contours.size());
+        //ROS_INFO("A");
+        //convex_hulls.clear();
+        convex_hulls.resize(contours.size());
+        for( int i = 0; i < contours.size(); i++ )
+        {
+            convexHull( contours[i], convex_hulls[i], true );
+        }
+        //ROS_INFO("B");
+/*
+        for ( int i = 0; i < convex_hulls.size() ; i++)
+        {
+           cv::drawContours(bw2, convex_hulls, i, cv::Scalar(255,0,255,255));
+        }
+
+        cv::namedWindow( "RGB with circles", cv::WINDOW_AUTOSIZE );
+        cv::resizeWindow("RGB with circles", 1024, 768);
+        cv::imshow( "RGB with circles", bw2);
+        cv::resizeWindow("RGB with circles", 1024, 768);
+
+        cv::waitKey(0);
+*/
+        mask_id++;
+
+        ROS_INFO("Mask recalculated");
     }
 
     void itable_service::caminfo_callback(const sensor_msgs::CameraInfo& msg_camerainfo)
@@ -343,24 +511,48 @@ namespace itable
 
     void itable_service::publish_mask()
     {
-        itable_pkg::convex_hull dummy_convex_hull;
-        dummy_convex_hull.convex_hull.push_back(0);
+        if ( mask_id != last_mask_id ) // new mask data to publish
+        {
+            itable_pkg::hull_point mp;
 
-        mask_msg.header.stamp = ros::Time::now();
-        mask_msg.mask.clear();
-        mask_msg.mask.push_back( dummy_convex_hull );
+            itable_pkg::mask mask;
+            for ( std::vector< std::vector<cv::Point> >::iterator it = convex_hulls.begin(); it != convex_hulls.end(); it++)
+            {
+                itable_pkg::hull hull;
+                for ( std::vector<cv::Point>::iterator it2 = it->begin(); it2 != it->end(); it2++)
+                {
+                    mp.x = it2->x;
+                    mp.y = it2->y;
+                    hull.hull.push_back(mp);
+                }
+                mask.mask.push_back(hull);
+            }
+            //std::cout << "pocet je " << mask_points.size() << std::endl;
+            mask.header.stamp = ros::Time::now();
+            mask_pub.publish(mask);
 
-        mask_pub.publish( mask_msg );
+            last_mask_id = mask_id;
+        }
+
     }
 
     void itable_service::publish_objects()
     {
-        itable_pkg::object dummy;
-        itable_pkg::objects dummy_array;
 
-        dummy_array.objects.push_back(dummy);
+        itable_pkg::object obj;
+        itable_pkg::objects obj_array;
+        for ( std::vector<object>::iterator it = objects.begin(); it != objects.end(); it++)
+        {
+            obj.center_x = it->center_x;
+            obj.center_y = it->center_y;
+            obj.width    = it->width;
+            obj.height   = it->height;
+            obj.angle    = it->angle;
 
-        objects_pub.publish(dummy_array);
+            obj_array.objects.push_back( obj );
+        }
+
+        objects_pub.publish(obj_array);
     }
 
     void itable_service::publish_all()
@@ -448,7 +640,6 @@ namespace itable
             object_box_loaded = true;
 
         ROS_INFO("Data from files loaded successfully");
-
     }
 
     void itable_service::find_marker(cv::Mat& rgb_img, cv::Mat& depth_img)
@@ -630,66 +821,3 @@ int main(int argc, char** argv)
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/**
-
-int main(int argc, char **argv)
-{
-
-  ros::init(argc, argv, "talker");
-
-  ros::NodeHandle n;
-
-  ros::Publisher chatter_pub = n.advertise<itable_pkg::marker_location>("marker",10);
-
-  ros::Rate loop_rate(10);
-
-
-  int count = 0;
-  /*
-  while (ros::ok())
-  {
-
-    itable_pkg::marker_location msg;
-
-	//msg.homography = new float[9] { 0,1,2,3,4,5,6,7,8 };
-
-	for ( int i = 0; i < 9 ;i++)
-		msg.homography[i] = i;
-
-	msg.valid = true;
-	msg.depth_value = 1000;
-
-
-    chatter_pub.publish(msg);
-
-    //ros::spinOnce();
-    ros::spin();
-/*
-    loop_rate.sleep();
-    ++count;
-  }
-
-
-  return 0;
-}
-*/

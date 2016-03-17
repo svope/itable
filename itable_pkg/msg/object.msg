@@ -1,5 +1,6 @@
 Header 	   header
-float32[4] bounding_rectangle
-float32	   depth
-int32[3]   rgb_color
-int32 	   type
+float32 center_x
+float32 center_y
+float32 width
+float32 height
+float32 angle

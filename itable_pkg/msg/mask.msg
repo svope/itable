@@ -1,2 +1,2 @@
 Header header
-convex_hull[] mask
+hull[] mask

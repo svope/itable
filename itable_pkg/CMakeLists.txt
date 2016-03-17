@@ -57,7 +57,8 @@ find_package(catkin REQUIRED COMPONENTS
    object.msg
    objects.msg
    proj_cam_data.msg
-   convex_hull.msg
+   hull_point.msg
+   hull.msg
  )
 
 ## Generate services in the 'srv' folder
