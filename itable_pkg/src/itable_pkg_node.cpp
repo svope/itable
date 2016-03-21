@@ -34,11 +34,19 @@ namespace itable
 
     void itable_service::ros_init()
     {
+        // get parameters from launch file
+        private_handle.getParam("topics_quality", topics_quality);
+        private_handle.getParam("package_dir_path",package_dir_path);
+        private_handle.getParam("marker_path",marker_path);
+        private_handle.getParam("recal_marker_time",recalculate_marker_time);
+        private_handle.getParam("min_cloud_depth",default_min_depth);
+        private_handle.getParam("max_cloud_depth",default_max_depth);
+
         // Subscribe
-        depth_sub.subscribe(node_handle, "/kinect2/qhd/image_depth_rect", 1);
-        rgb_sub.subscribe(node_handle, "/kinect2/qhd/image_color_rect",1);
-        pointcloud_sub.subscribe(node_handle,"/kinect2/qhd/points",1);
-        camerainfo_sub.subscribe(node_handle,"/kinect2/qhd/camera_info",1);
+        depth_sub.subscribe     (node_handle, "/kinect2/" + topics_quality + "/image_depth_rect", 1);
+        rgb_sub.subscribe       (node_handle, "/kinect2/" + topics_quality + "/image_color_rect",1);
+        pointcloud_sub.subscribe(node_handle, "/kinect2/" + topics_quality + "/points",1);
+        camerainfo_sub.subscribe(node_handle, "/kinect2/" + topics_quality + "/camera_info",1);
 
         //synchronizer_rgb_depth.reset( new synchronizer_rgb_depth(exact_sync_rgb_depth(10), rgb_sub, depth_sub));
         sync_rgb_depth = new synchronizer_rgb_depth(exact_sync_rgb_depth(10), rgb_sub, depth_sub);
@@ -55,11 +63,7 @@ namespace itable
         mask_pub          = node_handle.advertise<itable_pkg::mask>("mask_data",1);
         objects_pub       = node_handle.advertise<itable_pkg::objects>("objects_data",10);
 
-        private_handle.getParam("topics_quality", topics_quality);
-        private_handle.getParam("package_dir_path",package_dir_path);
-        private_handle.getParam("marker_path",marker_path);
-
-        ROS_INFO("itable_service node is running");
+        ROS_INFO("itable_service node is running, launch file parameters loaded");
     }
 
 
@@ -69,8 +73,10 @@ namespace itable
         cv::Mat rgb_img = cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image;
         cv::Mat depth_img = cv_bridge::toCvCopy(msg_depth)->image;
 	
-        if ( recalculate_marker_pos )
+        double time_diff = ros::Time::now().toSec() - marker_timer;
+        if ( recalculate_marker_pos && time_diff > recalculate_marker_time )
         {
+            marker_timer = ros::Time::now().toSec();
             find_marker(rgb_img, depth_img);
 
 #ifdef IMG_CALLBACK
@@ -113,7 +119,7 @@ namespace itable
         if ( marker_found_valid )
             pass_through.setFilterLimits ( marker_depth / 1000.0, marker_depth / 1000.0 + 0.25);
         else
-            pass_through.setFilterLimits (1.2, 1.5);
+            pass_through.setFilterLimits (default_min_depth / 1000.0, default_max_depth / 1000.0);
         pass_through.filter (*after_passthrough);
 
         float mask_min,mask_max;
@@ -123,7 +129,7 @@ namespace itable
 
         if ( recalculate_mask_flag )
         {
-            recalculate_mask2( cloud_mask, cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image );
+            recalculate_mask( cloud_mask, cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image );
         }
 
 
@@ -224,7 +230,7 @@ namespace itable
         //icp.setInputSource (cloud_box);
 
         pcl::PointCloud<pcl::PointXYZ>::Ptr  cloud_lowest_score ( new pcl::PointCloud<pcl::PointXYZ> );
-ROS_INFO("c");
+
         float min_score = 1.0;
         //std::string a ("a");
         for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
@@ -276,12 +282,14 @@ ROS_INFO("c");
             boxx.push_back( project3D_to_pixel(cv::Point3f((*cloud_lowest_score)[i].x,(*cloud_lowest_score)[i].y,(*cloud_lowest_score)[i].z)) );
         }
 
-        if ( min_score == 1.0f || points.empty())
+        if ( min_score == 1.0f || points.empty() )
         {
             ROS_INFO("Object not found in pointcloud");
             objects.clear();
+            publish_objects();
             return;
         }
+
         try
         {
             // Project pointcloud to projector space
@@ -298,6 +306,7 @@ ROS_INFO("c");
         // Save object information and later publish
         objects.clear();
         object new_object;
+        //cv::RotatedRect b_box   = minAreaRect(boxx);
         cv::RotatedRect b_box   = minAreaRect(projected_points);
         new_object.center_x     = b_box.center.x;
         new_object.center_y     = b_box.center.y;
@@ -306,6 +315,7 @@ ROS_INFO("c");
         new_object.angle        = b_box.angle;
 
         objects.push_back(new_object);
+        publish_objects();
 
 #ifdef POINTCLOUD_CALLBACK
         //cv::Mat rgb_img = cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image;
@@ -325,84 +335,20 @@ ROS_INFO("c");
 #endif
     }
 
-
-    void itable_service::recalculate_mask(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mask)
+    void itable_service::recalculate_mask(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mask, cv::Mat rgb_img)
     {
 
-        std::vector<cv::Point3f> cloud_points;
-        std::vector<cv::Point2f> projected_points;
-
-        for ( int i = 0; i < cloud_mask->size(); i++)
-        {
-            pcl::PointXYZ point = (*cloud_mask)[i];
-            if ( pcl::isFinite(point) )
-            {
-                cloud_points.push_back( cv::Point3f(point.x,point.y,point.z));
-                //std::cout << cv::Point3f(point.x,point.y,point.z) << std::endl;
-            }
-        }
-
-        // Mask points projected to projector space
-        cv::projectPoints(cloud_points, rot_vec, trans_vec, proj_cam_mat, dist_coeffs, projected_points);
-
-        mask_points.clear();
-        for ( int i = 0; i < projected_points.size();i++)
-        {
-            if ( projected_points[i].x >=  0.0 && projected_points[i].y >= 0.0
-                 && projected_points[i].x <= 1280.0 && projected_points[i].y <= 800.0)
-                mask_points.push_back(projected_points[i]);
-        }
-
-        mask_id++;
-
-        /*
-        for ( int i = 0; i < projected_points.size(); i++)
-        {
-		//std::cout << projected_points[i].x << " " << projected_points[i].y << std::endl;
-		if ( projected_points[i].x < width && projected_points[i].y < height
-			&& projected_points[i].x > 0 && projected_points[i].y > 0 )
-            		points_to_mask.at<uchar>( projected_points[i].y, projected_points[i].x) = 255;
-        }
-        std::cout << points_to_mask.size() <<std::endl;
-        //pcl::IndicesConstPtr removed_indices = pass_through.getRemovedIndices();
-        // Making black & white image for further processing
-
-        //for ( int i = 0; i < removed_indices->size(); i++)
-        //{
-        //    points_to_mask.at<uchar>( (*removed_indices)[i] / width, (*removed_indices)[i] % height) = 255;
-       // }
-
-
-        std::vector< std::vector< cv::Point> > contours;
-        findContours(points_to_mask, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
-
-        std::vector< std::vector< cv::Point> > contours2;
-
-        // Reducing amount of contours...
-        for( int i = 0; i < contours.size(); i++ )
-            if ( contours[i].size() > 1)
-                contours2.push_back(contours[i]);
-
-        std::vector< std::vector<cv::Point> > convex_hulls (contours2.size());
-        for( int i = 0; i < contours2.size(); i++ )
-            convexHull( contours2[i], convex_hulls[i], true );
-        */
-        //TODO make as function? projectpoint to projector space.
-        ROS_INFO("Mask recalculated");
-    }
-
-    void itable_service::recalculate_mask2(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mask, cv::Mat rgb_img)
-    {
-
-        //std::vector<cv::Point3f> cloud_points;
-        //std::vector<cv::Point2f> projected_points;
         cv::Mat bw = cv::Mat(rgb_img.size().height,rgb_img.size().width, CV_8U, cvScalar(0.));
 
+        std::vector< cv::Point2f > projected_points;
+        std::vector< cv::Point3f > cloud_points;
+
         for ( int i = 0; i < cloud_mask->size(); i++)
         {
             pcl::PointXYZ point = (*cloud_mask)[i];
             if ( pcl::isFinite(point) )
             {
+                cloud_points.push_back( cv::Point3f(point.x,point.y,point.z) );
                 cv::Point2f p =  project3D_to_pixel(cv::Point3f(point.x,point.y,point.z));
                 if ( p.x < rgb_img.size().width && p.y < rgb_img.size().height
                     && p.x > 0 && p.y > 0 )
@@ -411,11 +357,20 @@ ROS_INFO("c");
             }
         }
 
+        cv::Mat bw2 = cv::Mat(800,1280, CV_8U, cvScalar(0.));
+        for( std::vector< cv::Point2f >::iterator it = projected_points.begin() ; it != projected_points.end() ; it++ )
+        {
+            if ( it->x < 1280 && it->y < 800
+                && it->x > 0 && it->y > 0 )
+                        bw2.at<uchar>( it->y, it->x) = 255;
+        }
 
-        cv::Mat bw2;
-        //cv::dilate(bw, bw2, cv::Mat::ones( 5, 5, CV_32F ));
+        cv::projectPoints(cloud_points, rot_vec, trans_vec, proj_cam_mat, dist_coeffs, projected_points);
 
-        cv::dilate(bw, bw2, cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(5,5)));
+
+        cv::Mat bw3;
+
+        cv::dilate(bw2, bw3, cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(5,5)));
 /*
         cv::namedWindow( "BW1", cv::WINDOW_AUTOSIZE );
         cv::imshow( "BW1", bw);
@@ -428,7 +383,7 @@ ROS_INFO("c");
         cv::waitKey(0);
 */
         std::vector< std::vector< cv::Point> > contours;
-        findContours(bw2, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+        findContours(bw3, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 
         /*
         std::vector< std::vector< cv::Point> > contours2;
@@ -443,14 +398,12 @@ ROS_INFO("c");
 
 
         //std::vector< std::vector<cv::Point> > convex_hulls (contours.size());
-        //ROS_INFO("A");
         //convex_hulls.clear();
         convex_hulls.resize(contours.size());
         for( int i = 0; i < contours.size(); i++ )
         {
             convexHull( contours[i], convex_hulls[i], true );
         }
-        //ROS_INFO("B");
 /*
         for ( int i = 0; i < convex_hulls.size() ; i++)
         {
@@ -464,8 +417,8 @@ ROS_INFO("c");
 
         cv::waitKey(0);
 */
-        mask_id++;
 
+        publish_mask();
         ROS_INFO("Mask recalculated");
     }
 
@@ -505,34 +458,30 @@ ROS_INFO("c");
             marker_msg.homography[i] = *ptr;
 
         marker_msg.depth = marker_depth;
+        marker_msg.valid = marker_found_valid;
 
         marker_pub.publish( marker_msg );
     }
 
     void itable_service::publish_mask()
     {
-        if ( mask_id != last_mask_id ) // new mask data to publish
+
+        itable_pkg::hull_point mp;
+
+        itable_pkg::mask mask;
+        for ( std::vector< std::vector<cv::Point> >::iterator it = convex_hulls.begin(); it != convex_hulls.end(); it++)
         {
-            itable_pkg::hull_point mp;
-
-            itable_pkg::mask mask;
-            for ( std::vector< std::vector<cv::Point> >::iterator it = convex_hulls.begin(); it != convex_hulls.end(); it++)
+            itable_pkg::hull hull;
+            for ( std::vector<cv::Point>::iterator it2 = it->begin(); it2 != it->end(); it2++)
             {
-                itable_pkg::hull hull;
-                for ( std::vector<cv::Point>::iterator it2 = it->begin(); it2 != it->end(); it2++)
-                {
-                    mp.x = it2->x;
-                    mp.y = it2->y;
-                    hull.hull.push_back(mp);
-                }
-                mask.mask.push_back(hull);
+                mp.x = it2->x;
+                mp.y = it2->y;
+                hull.hull.push_back(mp);
             }
-            //std::cout << "pocet je " << mask_points.size() << std::endl;
-            mask.header.stamp = ros::Time::now();
-            mask_pub.publish(mask);
-
-            last_mask_id = mask_id;
+            mask.mask.push_back(hull);
         }
+        mask.header.stamp = ros::Time::now();
+        mask_pub.publish(mask);
 
     }
 
@@ -553,14 +502,6 @@ ROS_INFO("c");
         }
 
         objects_pub.publish(obj_array);
-    }
-
-    void itable_service::publish_all()
-    {
-        publish_proj_cam();
-        publish_marker();
-        publish_mask();
-        publish_objects();
     }
 
     void itable_service::load_data_from_files()
@@ -685,6 +626,7 @@ ROS_INFO("c");
         {
             ROS_INFO("Could not find marker in the scene. There are less than 4 matches. Published homography is NOT valid");
             marker_found_valid = false;
+            publish_marker();
             return;
         }
 
@@ -694,9 +636,9 @@ ROS_INFO("c");
 
         for( int i = 0; i < good_matches.size(); i++ )
         {
-          //-- Get the keypoints from the good matches
-          obj.push_back( keypoints_marker[ good_matches[i].queryIdx ].pt );
-          scene.push_back( keypoints_scene[ good_matches[i].trainIdx ].pt );
+            //-- Get the keypoints from the good matches
+            obj.push_back( keypoints_marker[ good_matches[i].queryIdx ].pt );
+            scene.push_back( keypoints_scene[ good_matches[i].trainIdx ].pt );
         }
 
 
@@ -723,6 +665,7 @@ ROS_INFO("c");
 
         marker_found_valid = true;
 
+        publish_marker();
         ROS_INFO("Marker found with depth = %f mm",marker_depth);
     }
 
@@ -812,7 +755,7 @@ int main(int argc, char** argv)
     while( ros::ok() )
     {
 
-        itable.publish_all();
+        itable.publish_proj_cam();
         ros::spinOnce();
     }
 

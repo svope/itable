@@ -1,13 +1,22 @@
 <launch>
 
   <arg name="topics_quality"    default="qhd"/>
-  <arg name="package_dir_path"  default="$(find itable_pkg)/data"/>
+  <arg name="package_dir_path"  default="$(find itable_pkg)/data/"/>
   <arg name="marker_path" 		default="$(find itable_pkg)/data/marker.jpg"/>
+  <!-- after how many seconds should be marker position recalculated -->
+  <arg name="recal_marker_time" default="3"/>
+  <!-- min, max depth for cloud in which objects will be searched -->
+  <arg name="min_cloud_depth" 	default="1200"/>
+  <arg name="max_cloud_depth" 	default="1500"/>
+
   
   <node pkg="itable_pkg" type="itable_pkg_node" name="itable_pkg" output="screen">
 	<param name="topics_quality"    type="str"    value="$(arg topics_quality)"/>
     <param name="package_dir_path"  type="str"    value="$(arg package_dir_path)"/>
     <param name="marker_path"       type="str"    value="$(arg marker_path)"/>
+    <param name="recal_marker_time" type="double"  value="$(arg recal_marker_time)"/>
+    <param name="min_cloud_depth"   type="double"  value="$(arg min_mask_depth)"/>
+    <param name="max_cloud_depth"   type="double"  value="$(arg max_mask_depth)"/>
   </node>
   
 </launch>

@@ -98,12 +98,10 @@ public:
     // Load calibration data from file
     void load_data_from_files();
     // Publish
-    void publish_all();
+    void publish_proj_cam();
 
 private:
 
-
-    //temp
     //pcl::PointCloud<pcl::PointXYZ> PointCloud;
     pcl::PointCloud<pcl::Normal>::Ptr box_normals;
     pcl::PointCloud<pcl::FPFHSignature33>::Ptr box_features;
@@ -124,15 +122,18 @@ private:
     cv::Mat marker_homography;
     cv::Mat marker_img;
     std::string marker_path;
+    double marker_timer;
+    double recalculate_marker_time { 4.0 };
     float marker_depth;
 
     // Mask
-    unsigned int mask_id {0};
-    unsigned int last_mask_id {0};
     std::vector< std::vector<cv::Point> > convex_hulls;
     std::vector<cv::Point2f> mask_points;
 
+
     // Objects in point-cloud
+    float default_min_depth;
+    float default_max_depth;
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_box {new pcl::PointCloud<pcl::PointXYZ>};
     std::vector<object> objects;
 
@@ -170,15 +171,14 @@ private:
     void caminfo_callback(const sensor_msgs::CameraInfo& msg_camerainfo);
 
     // Functions
-    void publish_proj_cam();
     void publish_marker();
     void publish_mask();
     void publish_objects();
+
     void find_marker(cv::Mat& rgb_img, cv::Mat& depth_img);
-    void recalculate_mask( pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mask);
-    void recalculate_mask2( pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mask, cv::Mat rgb_img);
+    void recalculate_mask( pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mask, cv::Mat rgb_img);
     void find_object_in_pointcloud(pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud,cv::Mat rgb_img);
-    void find_object_in_pointcloud2(pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud,cv::Mat rgb_img);
+
     void project3D_to_pixel( std::vector<cv::Point3d>& input_3D, std::vector<cv::Point2f>& output_2D );
     void backproject_pixel_to_3D( std::vector<cv::Point3f>& input, std::vector<cv::Point3f>& output);
     cv::Point2f project3D_to_pixel(cv::Point3f point3D);
