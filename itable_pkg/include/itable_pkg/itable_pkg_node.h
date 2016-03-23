@@ -102,6 +102,7 @@ public:
 
 private:
 
+    double tempp;
     //pcl::PointCloud<pcl::PointXYZ> PointCloud;
     pcl::PointCloud<pcl::Normal>::Ptr box_normals;
     pcl::PointCloud<pcl::FPFHSignature33>::Ptr box_features;

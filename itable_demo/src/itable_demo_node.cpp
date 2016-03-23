@@ -121,9 +121,16 @@ void itable_demo::events()
     sf::Event event;
     while (window->pollEvent(event))
     {
-                // "close requested" event: we close the window
+        // "close requested" event: we close the window
         if (event.type == sf::Event::Closed)
             window->close();
+        else if (event.type == sf::Event::KeyPressed)
+        {
+            if (event.key.code == sf::Keyboard::Escape)
+            {
+                window->close();
+            }
+        }
     }
 }
 
@@ -165,12 +172,12 @@ int main(int argc, char** argv)
     itable::itable_demo demo;
 
     demo.ros_init();
-    demo.create_window(960,540,"Game window",false);
+    demo.create_window(1280,1024,"Game window",false);
     //demo.window = new sf::RenderWindow(sf::VideoMode(960,540),"temp",sf::Style::Resize);
     demo.load_data();
 
 
-    while ( ros::ok())
+    while ( ros::ok() )
     {
         demo.events();
         demo.clear_window();

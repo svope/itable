@@ -8,6 +8,7 @@
   <!-- min, max depth for cloud in which objects will be searched -->
   <arg name="min_cloud_depth" 	default="1200"/>
   <arg name="max_cloud_depth" 	default="1500"/>
+  <arg name="temp"				default="0.08" />
 
   
   <node pkg="itable_pkg" type="itable_pkg_node" name="itable_pkg" output="screen">
@@ -17,6 +18,7 @@
     <param name="recal_marker_time" type="double"  value="$(arg recal_marker_time)"/>
     <param name="min_cloud_depth"   type="double"  value="$(arg min_cloud_depth)"/>
     <param name="max_cloud_depth"   type="double"  value="$(arg max_cloud_depth)"/>
+    <param name="temp"   			type="double"  value="$(arg max_cloud_depth)"/>
   </node>
   
 </launch>

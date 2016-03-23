@@ -1,6 +1,6 @@
 #include "itable_pkg/itable_pkg_node.h"
 
-#define LOAD_CALIB
+//#define LOAD_CALIB
 //#define IMG_CALLBACK
 //#define POINTCLOUD_CALLBACK
 //#define POINTCLOUD_CALLBACK1
@@ -41,6 +41,7 @@ namespace itable
         private_handle.getParam("recal_marker_time",recalculate_marker_time);
         private_handle.getParam("min_cloud_depth",default_min_depth);
         private_handle.getParam("max_cloud_depth",default_max_depth);
+        private_handle.getParam("temp",tempp);
 
         // Subscribe
         depth_sub.subscribe     (node_handle, "/kinect2/" + topics_quality + "/image_depth_rect", 1);
@@ -48,9 +49,11 @@ namespace itable
         pointcloud_sub.subscribe(node_handle, "/kinect2/" + topics_quality + "/points",1);
         camerainfo_sub.subscribe(node_handle, "/kinect2/" + topics_quality + "/camera_info",1);
 
+        camerainfo_sub.registerCallback(&itable_service::caminfo_callback, this);
+
         //synchronizer_rgb_depth.reset( new synchronizer_rgb_depth(exact_sync_rgb_depth(10), rgb_sub, depth_sub));
         sync_rgb_depth = new synchronizer_rgb_depth(exact_sync_rgb_depth(10), rgb_sub, depth_sub);
-        sync_rgb_depth->registerCallback(&itable_service::image_callback, this);
+        //sync_rgb_depth->registerCallback(&itable_service::image_callback, this);
 
         //synchronizer_pointcloud.reset( new synchronizer_pointcloud( exact_sync_pointcloud_rgb(10),pointcloud_sub,rgb_sub));
         sync_pointcloud = new synchronizer_pointcloud( exact_sync_pointcloud_rgb(10),pointcloud_sub,rgb_sub);
@@ -124,10 +127,10 @@ namespace itable
 
         float mask_min,mask_max;
         pass_through.getFilterLimits (mask_min, mask_max);
-        pass_through.setFilterLimits(0.2,mask_min - 0.05);
+        pass_through.setFilterLimits(0.5f,0.8f);
         pass_through.filter(*cloud_mask);
 
-        if ( recalculate_mask_flag )
+        if ( !recalculate_mask_flag )
         {
             recalculate_mask( cloud_mask, cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image );
         }
@@ -225,14 +228,14 @@ namespace itable
         pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
         icp.setMaximumIterations (10);
         // Set the max correspondence distance to 5cm (e.g., correspondences with higher distances will be ignored)
-        icp.setMaxCorrespondenceDistance (0.05);
+        icp.setMaxCorrespondenceDistance ( tempp);
         icp.setInputTarget (cloud_box);
         //icp.setInputSource (cloud_box);
 
         pcl::PointCloud<pcl::PointXYZ>::Ptr  cloud_lowest_score ( new pcl::PointCloud<pcl::PointXYZ> );
 
         float min_score = 1.0;
-        //std::string a ("a");
+        std::string a ("a");
         for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
         {
             pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
@@ -242,9 +245,9 @@ namespace itable
             cloud_cluster->height = 1;
             cloud_cluster->is_dense = true;
 
-           // pcl::io::savePCDFileASCII ("/home/petr/test_pcd" + a +".pcd", *cloud_cluster);
+            pcl::io::savePCDFileASCII ("/home/petr/test_pcd" + a +".pcd", *cloud_cluster);
 
-           // a.append("a");
+            a.append("a");
             pcl::PointCloud<pcl::PointXYZ>::Ptr  temp ( new pcl::PointCloud<pcl::PointXYZ> );
             icp.setInputSource (cloud_cluster);
             //icp.setInputTarget (cloud_cluster);
@@ -357,15 +360,24 @@ namespace itable
             }
         }
 
-        cv::Mat bw2 = cv::Mat(800,1280, CV_8U, cvScalar(0.));
+        try
+        {
+            cv::projectPoints(cloud_points, rot_vec, trans_vec, proj_cam_mat, dist_coeffs, projected_points);
+        }
+        catch( cv::Exception& e )
+        {
+            return;
+        }
+
+        cv::Mat bw2 = cv::Mat(1024,1280, CV_8U, cvScalar(0.));
         for( std::vector< cv::Point2f >::iterator it = projected_points.begin() ; it != projected_points.end() ; it++ )
         {
-            if ( it->x < 1280 && it->y < 800
+            if ( it->x < 1280 && it->y < 1024
                 && it->x > 0 && it->y > 0 )
                         bw2.at<uchar>( it->y, it->x) = 255;
         }
 
-        cv::projectPoints(cloud_points, rot_vec, trans_vec, proj_cam_mat, dist_coeffs, projected_points);
+        //cv::projectPoints(cloud_points, rot_vec, trans_vec, proj_cam_mat, dist_coeffs, projected_points);
 
 
         cv::Mat bw3;
@@ -706,10 +718,10 @@ namespace itable
         if ( !cam_info_set )
             return cv::Point2f();
 
-        float fx     = cam_intrinsic.at<double>(0,0) / 2.0;
-        float fy     = cam_intrinsic.at<double>(1,1) / 2.0;
-        float cx     = cam_intrinsic.at<double>(0,2) / 2.0;
-        float cy     = cam_intrinsic.at<double>(1,2) / 2.0;
+        float fx     = cam_intrinsic.at<double>(0,0);
+        float fy     = cam_intrinsic.at<double>(1,1);
+        float cx     = cam_intrinsic.at<double>(0,2);
+        float cy     = cam_intrinsic.at<double>(1,2);
 
         float dist = point3D.z;
         float X    = (point3D.x  * fx / dist) + cx;
