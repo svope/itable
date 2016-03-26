@@ -4,6 +4,23 @@
 namespace itable
 {
 
+itable_demo::itable_demo()
+{
+    // Create triggers
+    prague_trigger = sf::CircleShape(40.f);
+    prague_trigger.setPosition(425,250);
+    prague_trigger.setFillColor( sf::Color::Transparent);
+    prague_trigger.setOutlineThickness(5.f);
+    prague_trigger.setOutlineColor( sf::Color::Red );
+
+    brno_trigger = sf::CircleShape(40.f);
+    brno_trigger.setPosition( 830,500);
+    brno_trigger.setFillColor( sf::Color::Transparent);
+    brno_trigger.setOutlineThickness(5.f);
+    brno_trigger.setOutlineColor( sf::Color::Red );
+
+}
+
 void itable_demo::ros_init()
 {
     mask_sub    = node_handle.subscribe("/mask_data", 1, &itable_demo::mask_callback,this);
@@ -69,9 +86,9 @@ void itable_demo::create_window(int width, int height, std::string window_name, 
 
 void itable_demo::load_data()
 {
-    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/maps/brno.jpg");
+    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/maps/brno.png");
     img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/maps/praha.jpg");
-    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/maps/CR.jpg");
+    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/maps/CR.png");
 
     for ( std::vector< std::string >::iterator it = img_files.begin(); it != img_files.end(); it++)
     {
@@ -130,6 +147,22 @@ void itable_demo::events()
             {
                 window->close();
             }
+            if ( event.key.code == sf::Keyboard::Left)
+            {
+                objects[0].x -= 5;
+            }
+            if ( event.key.code == sf::Keyboard::Right)
+            {
+                objects[0].x += 5;
+            }
+            if ( event.key.code == sf::Keyboard::Down)
+            {
+                objects[0].y += 5;
+            }
+            if ( event.key.code == sf::Keyboard::Up)
+            {
+                objects[0].y -= 5;
+            }
         }
     }
 }
@@ -140,19 +173,39 @@ void itable_demo::game()
     switch( game_state )
     {
     case s_init:
+        window->draw(map_CR);
+        window->draw(prague_trigger);
+        window->draw(brno_trigger);
 
+        if ( !objects.empty() )
+        {
+            sf::FloatRect pragueBB = prague_trigger.getGlobalBounds();
+            sf::FloatRect brnoBB   = brno_trigger.getGlobalBounds();
 
+            // check collision with a point
+            sf::Vector2f object_center( objects[0].x, objects[0].y);
+            if (pragueBB.contains(object_center))
+            {
+                std::cout << "PRAGUE" << std::endl;
+                game_state = s_prague;
+            }
+            else if (  brnoBB.contains( object_center) )
+            {
+                std::cout << "BRNO" << std::endl;
+                game_state = s_brno;
+            }
+        }
 
         break;
 
     case s_prague:
-
+        window->draw(prague);
 
 
         break;
 
     case s_brno:
-
+        window->draw(brno);
 
 
         break;
@@ -177,11 +230,21 @@ int main(int argc, char** argv)
     demo.load_data();
 
 
+    itable::object obj;
+    obj.width = 30;
+    obj.height = 30;
+    obj.x = 100;
+    obj.y = 100;
+    obj.angle = 0;
+
+    demo.objects.push_back(obj);
+
     while ( ros::ok() )
     {
         demo.events();
         demo.clear_window();
 
+        demo.game();
         demo.draw_objects();
         demo.draw_mask();
         demo.display();

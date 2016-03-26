@@ -34,13 +34,42 @@ namespace itable
 
     void itable_service::ros_init()
     {
+        std::string temp;
+
         // get parameters from launch file
         private_handle.getParam("topics_quality", topics_quality);
         private_handle.getParam("package_dir_path",package_dir_path);
+        // Marker
+        private_handle.getParam("calculate_marker",calculate_marker);
         private_handle.getParam("marker_path",marker_path);
         private_handle.getParam("recal_marker_time",recalculate_marker_time);
-        private_handle.getParam("min_cloud_depth",default_min_depth);
-        private_handle.getParam("max_cloud_depth",default_max_depth);
+        // Mask
+        private_handle.getParam("calculate_mask",calculate_mask);
+        private_handle.getParam("mask_mode",temp);
+
+        if ( temp == "marker+offset")
+            mask_mode = 0;
+        else if ( temp == "auto")
+            mask_mode = 2;
+        else mask_mode = 1;
+
+        private_handle.getParam("mask_offest",mask_offset);
+        private_handle.getParam("min_mask_depth",min_mask_depth);
+        private_handle.getParam("max_mask_depth",max_mask_depth);
+        // Objects
+        private_handle.getParam("calculate_object",calculate_object);
+        private_handle.getParam("object_mode",temp);
+
+        if ( temp == "marker+offset")
+            mask_mode = 0;
+        else if ( temp == "auto")
+            mask_mode = 2;
+        else mask_mode = 1;
+
+        private_handle.getParam("object_offest",object_offset);
+        private_handle.getParam("min_cloud_depth",min_cloud_depth);
+        private_handle.getParam("max_cloud_depth",max_cloud_depth);
+
         private_handle.getParam("temp",tempp);
 
         // Subscribe
@@ -53,7 +82,7 @@ namespace itable
 
         //synchronizer_rgb_depth.reset( new synchronizer_rgb_depth(exact_sync_rgb_depth(10), rgb_sub, depth_sub));
         sync_rgb_depth = new synchronizer_rgb_depth(exact_sync_rgb_depth(10), rgb_sub, depth_sub);
-        //sync_rgb_depth->registerCallback(&itable_service::image_callback, this);
+        sync_rgb_depth->registerCallback(&itable_service::image_callback, this);
 
         //synchronizer_pointcloud.reset( new synchronizer_pointcloud( exact_sync_pointcloud_rgb(10),pointcloud_sub,rgb_sub));
         sync_pointcloud = new synchronizer_pointcloud( exact_sync_pointcloud_rgb(10),pointcloud_sub,rgb_sub);
@@ -77,7 +106,7 @@ namespace itable
         cv::Mat depth_img = cv_bridge::toCvCopy(msg_depth)->image;
 	
         double time_diff = ros::Time::now().toSec() - marker_timer;
-        if ( recalculate_marker_pos && time_diff > recalculate_marker_time )
+        if ( time_diff > recalculate_marker_time && calculate_marker )
         {
             marker_timer = ros::Time::now().toSec();
             find_marker(rgb_img, depth_img);
@@ -108,6 +137,10 @@ namespace itable
     void itable_service::pointcloud_callback(const sensor_msgs::PointCloud2ConstPtr& msg_pointcloud,const sensor_msgs::ImageConstPtr& msg_rgb)
     {
         ROS_INFO("Pointcloud callback");
+        // No interest in pointcloud data
+        if ( !calculate_mask && !calculate_object )
+            return;
+
         pcl::PointCloud<pcl::PointXYZ>::Ptr  cloud_ptr ( new pcl::PointCloud<pcl::PointXYZ> );
         pcl::PointCloud<pcl::PointXYZ>::Ptr  after_passthrough ( new pcl::PointCloud<pcl::PointXYZ> );
         pcl::PointCloud<pcl::PointXYZ>::Ptr  cloud_mask ( new pcl::PointCloud<pcl::PointXYZ> );
@@ -115,22 +148,63 @@ namespace itable
         pcl::fromROSMsg (*msg_pointcloud, *cloud_ptr);
 
         // Create the filtering object - threshold
-        pcl::PassThrough<pcl::PointXYZ> pass_through(true);
+        pcl::PassThrough<pcl::PointXYZ> pass_through;
         pass_through.setInputCloud (cloud_ptr);
         pass_through.setFilterFieldName ("z");
 
-        if ( marker_found_valid )
-            pass_through.setFilterLimits ( marker_depth / 1000.0, marker_depth / 1000.0 + 0.25);
-        else
-            pass_through.setFilterLimits (default_min_depth / 1000.0, default_max_depth / 1000.0);
-        pass_through.filter (*after_passthrough);
 
-        float mask_min,mask_max;
-        pass_through.getFilterLimits (mask_min, mask_max);
-        pass_through.setFilterLimits(0.5f,0.8f);
-        pass_through.filter(*cloud_mask);
+        if ( calculate_object )
+        {
+            if ( object_mode == 0 ) // marker + offset
+            {
+                if ( marker_found_valid )
+                {
+                    pass_through.setFilterLimits ( (marker_depth - object_offset )/ 1000.0, marker_depth / 1000.0 );
+                }
+                else; // do nothing
+            }
+            else if ( object_mode == 1) //static
+                pass_through.setFilterLimits (min_cloud_depth / 1000.0, max_cloud_depth / 1000.0);
+            else // auto
+            {
+                if ( marker_found_valid )
+                {
+                    pass_through.setFilterLimits ( (marker_depth - object_offset )/ 1000.0, marker_depth / 1000.0 );
+                }
+                else
+                    pass_through.setFilterLimits (min_cloud_depth / 1000.0, max_cloud_depth / 1000.0);
+            }
 
-        if ( !recalculate_mask_flag )
+            pass_through.filter (*after_passthrough);
+        }
+
+
+        if ( calculate_mask )
+        {
+            if ( object_mode == 0 ) // marker + offset
+            {
+                if ( marker_found_valid )
+                {
+                    pass_through.setFilterLimits ( (marker_depth - mask_offset )/ 1000.0, marker_depth / 1000.0 );
+                }
+                else; // do nothing
+            }
+            else if ( object_mode == 1) //static
+                pass_through.setFilterLimits ( min_mask_depth / 1000.0, max_mask_depth / 1000.0);
+            else // auto
+            {
+                if ( marker_found_valid )
+                {
+                    pass_through.setFilterLimits ( (marker_depth - mask_offset )/ 1000.0, marker_depth / 1000.0 );
+                }
+                else
+                    pass_through.setFilterLimits ( min_mask_depth / 1000.0, max_mask_depth / 1000.0);
+            }
+
+            pass_through.filter(*cloud_mask);
+        }
+
+        if ( calculate_mask)
         {
             recalculate_mask( cloud_mask, cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image );
         }
@@ -165,7 +239,7 @@ namespace itable
 
 #endif
 
-        if ( find_object )
+        if ( calculate_object )
         {
             find_object_in_pointcloud(after_passthrough,cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image);
         }
@@ -573,24 +647,29 @@ namespace itable
 
         fs.release();
 
-        marker_img = cv::imread( marker_path, CV_LOAD_IMAGE_GRAYSCALE );
-
-        if( !marker_img.data )
+        if ( calculate_marker )
         {
-            marker_loaded = false;
-            ROS_ERROR("Could NOT load marker image file %s. Published homography matrix will be invalid",marker_path.c_str());
+            marker_img = cv::imread( marker_path, CV_LOAD_IMAGE_GRAYSCALE );
+
+            if( !marker_img.data )
+            {
+                marker_loaded = false;
+                ROS_ERROR("Could NOT load marker image file %s. Published homography matrix will be invalid",marker_path.c_str());
+            }
+            else
+                marker_loaded = true;
         }
-        else
-            marker_loaded = true;
 
 
-
-        if (pcl::io::loadPCDFile<pcl::PointXYZ> (package_dir_path + "box.pcd", *cloud_box) == -1) //* load the file
+        if ( calculate_object )
         {
-            ROS_ERROR ("Couldn't read file box.pcd in %s. Published box data will be invalid.",package_dir_path.c_str());
+            if (pcl::io::loadPCDFile<pcl::PointXYZ> (package_dir_path + "box.pcd", *cloud_box) == -1) //* load the file
+            {
+                ROS_ERROR ("Couldn't read file box.pcd in %s. Published box data will be invalid.",package_dir_path.c_str());
+            }
+            else
+                object_box_loaded = true;
         }
-        else
-            object_box_loaded = true;
 
         ROS_INFO("Data from files loaded successfully");
     }

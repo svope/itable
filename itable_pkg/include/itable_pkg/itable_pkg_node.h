@@ -126,26 +126,35 @@ private:
     double marker_timer;
     double recalculate_marker_time { 4.0 };
     float marker_depth;
+    float marker_offset;
 
     // Mask
     std::vector< std::vector<cv::Point> > convex_hulls;
     std::vector<cv::Point2f> mask_points;
-
+    int mask_mode {1};// 0 mask + offest 1 static 2 auto
+    float mask_offset { 200 };
+    float min_mask_depth;
+    float max_mask_depth;
 
     // Objects in point-cloud
-    float default_min_depth;
-    float default_max_depth;
+    float min_cloud_depth;
+    float max_cloud_depth;
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_box {new pcl::PointCloud<pcl::PointXYZ>};
     std::vector<object> objects;
+    int object_mode {1}; // 0 mask + offest 1 static 2 auto
+    float object_offset { 200 };
 
     // Flags
-    bool recalculate_marker_pos { true};
-    bool recalculate_mask_flag {true};
-    bool marker_loaded {false};
-    bool cam_info_set {false};
-    bool find_object {true};
-    bool marker_found_valid {false};
-    bool object_box_loaded {false};
+    bool calculate_marker       {true};
+    bool marker_loaded          {false};
+    bool marker_found_valid     {false};
+
+    bool calculate_mask         {true};
+
+    bool calculate_object       {true};
+    bool object_box_loaded      {false};
+
+    bool cam_info_set           {false};
 
     // Launch arguments
     std::string package_dir_path;

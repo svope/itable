@@ -54,6 +54,7 @@ public:
     void ros_init();
 
 
+    itable_demo();
     void create_window(int width, int height, std::string window_name, bool fullscreen = true);
     void load_data();
     void display(){window->display();}
@@ -84,6 +85,7 @@ private:
     std::vector< sf::ConvexShape > masks;
 
     // Object
+public:
     std::vector< object > objects;
 
     // game states
@@ -97,6 +99,13 @@ private:
     sf::Sprite map_CR;
     sf::Sprite prague,brno;
 
+    // Triggers
+    sf::CircleShape prague_trigger;
+    sf::CircleShape brno_trigger;
+
+    // Timer
+    bool ticking { false };
+    sf::Clock timer;
 };
 
 

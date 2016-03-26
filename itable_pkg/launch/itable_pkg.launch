@@ -2,10 +2,35 @@
 
   <arg name="topics_quality"    default="qhd"/>
   <arg name="package_dir_path"  default="$(find itable_pkg)/data/"/>
+  
+  <!-- Marker -->
+  <!-- should be marker position + homography matrix calculated? -->
+  <arg name="calculate_marker" 	default="true"/>
+  <!-- Path to marker image file -->
   <arg name="marker_path" 		default="$(find itable_pkg)/data/marker.jpg"/>
   <!-- after how many seconds should be marker position recalculated -->
   <arg name="recal_marker_time" default="3"/>
+  
+  <!-- Mask -->
+  <!-- should be mask calculated? -->
+  <arg name="calculate_mask" 	default="true"/>
+  <!-- mode: marker+offset - Mask will be calculate in range FROM 0 TO marker depth - mask_offset depth [mm]-->
+  <!-- mode: static - Mask will be calculate in range FROM min_mask_depth TO max_mask_depth [mm]-->
+  <!-- mode: auto - If marker is valid then mode=="marker+offset", else mode=="static"-->
+  <arg name="mask_mode" 		default="static"/>
+  <arg name="mask_offset" 		default="200"/>
+  <arg name="min_mask_depth" 	default="500"/>
+  <arg name="max_mask_depth" 	default="800"/>
+  
+  <!-- Object -->
+  <!-- should object be detected? -->
+  <arg name="calculate_object" 	default="true"/>
+  <!-- mode: marker+offset - Objects will be detected in range FROM marker depth - object_offset depth TO marker depth [mm]. If no marker is found, do nothing-->
+  <!-- mode: static - Objects will be detected in range FROM min_cloud_depth TO max_cloud_depth [mm]-->
+  <!-- mode: auto - If marker is valid then mode=="marker+offset", else mode=="static"-->
   <!-- min, max depth for cloud in which objects will be searched -->
+  <arg name="object_mode" 		default="static"/>
+  <arg name="object_offset" 	default="200"/>
   <arg name="min_cloud_depth" 	default="1200"/>
   <arg name="max_cloud_depth" 	default="1500"/>
   <arg name="temp"				default="0.08" />
@@ -14,11 +39,24 @@
   <node pkg="itable_pkg" type="itable_pkg_node" name="itable_pkg" output="screen">
 	<param name="topics_quality"    type="str"    value="$(arg topics_quality)"/>
     <param name="package_dir_path"  type="str"    value="$(arg package_dir_path)"/>
+    
+    <param name="calculate_marker"  type="bool"   value="$(arg calculate_marker)"/>
     <param name="marker_path"       type="str"    value="$(arg marker_path)"/>
-    <param name="recal_marker_time" type="double"  value="$(arg recal_marker_time)"/>
-    <param name="min_cloud_depth"   type="double"  value="$(arg min_cloud_depth)"/>
-    <param name="max_cloud_depth"   type="double"  value="$(arg max_cloud_depth)"/>
-    <param name="temp"   			type="double"  value="$(arg max_cloud_depth)"/>
+    <param name="recal_marker_time" type="double" value="$(arg recal_marker_time)"/>
+    
+    <param name="calculate_mask"  	type="bool"   value="$(arg calculate_marker)"/>
+    <param name="mask_mode"			type="str"	  value="$(arg mask_mode)"/>
+    <param name="mask_offset"   	type="double" value="$(arg mask_offset)"/>
+    <param name="min_mask_depth"    type="double" value="$(arg min_mask_depth)"/>
+    <param name="max_mask_depth"    type="double" value="$(arg max_mask_depth)"/>
+    
+    <param name="calculate_object"  type="bool"   value="$(arg calculate_object)"/>
+    <param name="object_mode"		type="str"	  value="$(arg object_mode)"/>
+    <param name="object_offset"   	type="double" value="$(arg mask_offset)"/>
+    <param name="min_cloud_depth"   type="double" value="$(arg min_cloud_depth)"/>
+    <param name="max_cloud_depth"   type="double" value="$(arg max_cloud_depth)"/>
+    
+    <param name="temp"   			type="double" value="$(arg max_cloud_depth)"/>
   </node>
   
 </launch>
