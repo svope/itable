@@ -33,7 +33,8 @@
   <arg name="object_offset" 	default="200"/>
   <arg name="min_cloud_depth" 	default="1200"/>
   <arg name="max_cloud_depth" 	default="1500"/>
-  <arg name="temp"				default="0.08" />
+  <!-- Parametr of method ICP - MaxCorrespondenceDistance. Could be usefull when no object is found -->
+  <arg name="MaxCorrespondenceDistance"				default="0.08" />
 
   
   <node pkg="itable_pkg" type="itable_pkg_node" name="itable_pkg" output="screen">
@@ -56,7 +57,7 @@
     <param name="min_cloud_depth"   type="double" value="$(arg min_cloud_depth)"/>
     <param name="max_cloud_depth"   type="double" value="$(arg max_cloud_depth)"/>
     
-    <param name="temp"   			type="double" value="$(arg max_cloud_depth)"/>
+    <param name="max_corr_distance"	type="double" value="$(arg max_cloud_depth)"/>
   </node>
   
 </launch>

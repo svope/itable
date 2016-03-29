@@ -70,7 +70,7 @@ namespace itable
         private_handle.getParam("min_cloud_depth",min_cloud_depth);
         private_handle.getParam("max_cloud_depth",max_cloud_depth);
 
-        private_handle.getParam("temp",tempp);
+        private_handle.getParam("max_corr_distance",max_corr_dist);
 
         // Subscribe
         depth_sub.subscribe     (node_handle, "/kinect2/" + topics_quality + "/image_depth_rect", 1);
@@ -302,14 +302,14 @@ namespace itable
         pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
         icp.setMaximumIterations (10);
         // Set the max correspondence distance to 5cm (e.g., correspondences with higher distances will be ignored)
-        icp.setMaxCorrespondenceDistance ( tempp);
+        icp.setMaxCorrespondenceDistance ( max_corr_dist );
         icp.setInputTarget (cloud_box);
         //icp.setInputSource (cloud_box);
 
         pcl::PointCloud<pcl::PointXYZ>::Ptr  cloud_lowest_score ( new pcl::PointCloud<pcl::PointXYZ> );
 
         float min_score = 1.0;
-        std::string a ("a");
+        //std::string a ("a");
         for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
         {
             pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
@@ -319,9 +319,9 @@ namespace itable
             cloud_cluster->height = 1;
             cloud_cluster->is_dense = true;
 
-            pcl::io::savePCDFileASCII ("/home/petr/test_pcd" + a +".pcd", *cloud_cluster);
+            //pcl::io::savePCDFileASCII ("/home/petr/test_pcd" + a +".pcd", *cloud_cluster);
 
-            a.append("a");
+            //a.append("a");
             pcl::PointCloud<pcl::PointXYZ>::Ptr  temp ( new pcl::PointCloud<pcl::PointXYZ> );
             icp.setInputSource (cloud_cluster);
             //icp.setInputTarget (cloud_cluster);

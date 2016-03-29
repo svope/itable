@@ -102,7 +102,6 @@ public:
 
 private:
 
-    double tempp;
     //pcl::PointCloud<pcl::PointXYZ> PointCloud;
     pcl::PointCloud<pcl::Normal>::Ptr box_normals;
     pcl::PointCloud<pcl::FPFHSignature33>::Ptr box_features;
@@ -143,6 +142,7 @@ private:
     std::vector<object> objects;
     int object_mode {1}; // 0 mask + offest 1 static 2 auto
     float object_offset { 200 };
+    double max_corr_dist {0.08};
 
     // Flags
     bool calculate_marker       {true};

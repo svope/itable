@@ -47,6 +47,22 @@ struct object
     float angle;
 };
 
+class Trigger
+{
+public:
+    Trigger(sf::RenderWindow** win,std::string file_path, sf::CircleShape* cs);
+    bool update( object obj );
+    sf::Shape* draw() { return circles; }
+private:
+    std::string file;
+    sf::Texture* tex;
+    sf::Sprite*  sprite;
+    sf::Shape* circles;
+    sf::RenderWindow** window;
+    sf::Clock timer;
+    bool ticking {false};
+};
+
 class itable_demo
 {
 public:
@@ -55,6 +71,7 @@ public:
 
 
     itable_demo();
+    bool running(){ return demo_running;}
     void create_window(int width, int height, std::string window_name, bool fullscreen = true);
     void load_data();
     void display(){window->display();}
@@ -91,7 +108,7 @@ public:
     // game states
     enum game_states { s_init, s_prague, s_brno };
     game_states game_state { s_init };
-
+    bool demo_running { true };
 
     // Images to load
     std::vector< std::string > img_files;
@@ -100,6 +117,7 @@ public:
     sf::Sprite prague,brno;
 
     // Triggers
+    itable::Trigger* trig;
     sf::CircleShape prague_trigger;
     sf::CircleShape brno_trigger;
 
@@ -107,8 +125,6 @@ public:
     bool ticking { false };
     sf::Clock timer;
 };
-
-
 
 
 } //namespace

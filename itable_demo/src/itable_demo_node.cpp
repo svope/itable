@@ -19,6 +19,8 @@ itable_demo::itable_demo()
     brno_trigger.setOutlineThickness(5.f);
     brno_trigger.setOutlineColor( sf::Color::Red );
 
+    trig = new Trigger(&window, "/home/petr/catkin_ws/src/itable_demo/data/square.png", &prague_trigger );
+
 }
 
 void itable_demo::ros_init()
@@ -146,6 +148,7 @@ void itable_demo::events()
             if (event.key.code == sf::Keyboard::Escape)
             {
                 window->close();
+                demo_running = false;
             }
             if ( event.key.code == sf::Keyboard::Left)
             {
@@ -174,11 +177,16 @@ void itable_demo::game()
     {
     case s_init:
         window->draw(map_CR);
-        window->draw(prague_trigger);
+        window->draw( *(trig->draw()) );
         window->draw(brno_trigger);
 
+        draw_objects();
         if ( !objects.empty() )
         {
+            if ( trig->update( objects[0]) )
+                game_state = s_prague;
+
+            /*
             sf::FloatRect pragueBB = prague_trigger.getGlobalBounds();
             sf::FloatRect brnoBB   = brno_trigger.getGlobalBounds();
 
@@ -194,6 +202,7 @@ void itable_demo::game()
                 std::cout << "BRNO" << std::endl;
                 game_state = s_brno;
             }
+            */
         }
 
         break;
@@ -215,6 +224,85 @@ void itable_demo::game()
         break;
     }
 
+}
+
+Trigger::Trigger(sf::RenderWindow** win,std::string file_path, sf::CircleShape* cs)
+{
+    window = win;
+    file = file_path;
+    sprite = new sf::Sprite();
+
+    tex = new sf::Texture();
+    if (!tex->loadFromFile(file.c_str()))
+    {
+        ROS_ERROR("Trigger: Cannot load image file %s", file.c_str()  );
+    }
+    tex->setSmooth(true);
+    sprite->setTexture(*tex);
+    circles = cs;
+}
+
+bool Trigger::update( object obj )
+{
+    sf::FloatRect fr = circles->getGlobalBounds();
+
+    sf::Vector2f position(obj.x,obj.y);
+    // check collision with a point
+    if ( fr.contains(position) )
+    {
+        if ( ticking == false )
+        {
+            timer.restart();
+            ticking = true;
+        }
+        else
+        {
+            sprite->setScale(   (obj.width / 2.0) / sprite->getLocalBounds().width,   (obj.height / 2.0) / sprite->getLocalBounds().height );
+            if ( timer.getElapsedTime().asSeconds() < 0.5f )
+            {
+                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) );
+                (*window)->draw(*sprite);
+            }
+            else if ( timer.getElapsedTime().asSeconds() < 1.0f )
+            {
+                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) );
+                (*window)->draw(*sprite);
+                sprite->setPosition( obj.x , obj.y - (obj.height / 2.0) );
+                (*window)->draw(*sprite);
+            }
+            else if ( timer.getElapsedTime().asSeconds() < 1.5f )
+            {
+                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) );
+                (*window)->draw(*sprite);
+                sprite->setPosition( obj.x , obj.y - (obj.height / 2.0) );
+                (*window)->draw(*sprite);
+                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y  );
+                (*window)->draw(*sprite);
+            }
+            else if ( timer.getElapsedTime().asSeconds() < 2.0f )
+            {
+                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) );
+                (*window)->draw(*sprite);
+                sprite->setPosition( obj.x , obj.y - (obj.height / 2.0) );
+                (*window)->draw(*sprite);
+                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y  );
+                (*window)->draw(*sprite);
+                sprite->setPosition( obj.x , obj.y );
+                (*window)->draw(*sprite);
+            }
+            else if ( timer.getElapsedTime().asSeconds() > 2.0f )
+            {
+                return true;
+            }
+
+        }
+
+    }
+    else if ( ticking )
+    {
+        ticking = false;
+    }
+    return false;
 }
 
 } // namespace
@@ -239,13 +327,13 @@ int main(int argc, char** argv)
 
     demo.objects.push_back(obj);
 
-    while ( ros::ok() )
+    while ( ros::ok() && demo.running() )
     {
         demo.events();
         demo.clear_window();
 
         demo.game();
-        demo.draw_objects();
+        //demo.draw_objects();
         demo.draw_mask();
         demo.display();
 
