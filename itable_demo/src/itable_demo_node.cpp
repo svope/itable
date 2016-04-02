@@ -61,6 +61,10 @@ void itable_demo::object_callback(const itable_pkg::objects& msg)
 {
     ROS_INFO_ONCE ( "Object callback called");
 
+    object temp;
+    if ( !objects.empty() )
+        temp = objects[0];
+
     objects.resize( msg.objects.size() );
     for ( int i = 0; i < msg.objects.size(); i++ )
     {
@@ -72,7 +76,24 @@ void itable_demo::object_callback(const itable_pkg::objects& msg)
         obj.height = msg.objects[i].height;
         obj.angle  = msg.objects[i].angle;
 
-        objects[i] = obj;
+        std::cout << obj.x << " " << obj.y << std::endl;
+
+        if ( abs(temp.x - obj.x) > 30 && abs(temp.y - obj.y) > 30 )
+        {
+            std::cout << "change a lot" << std::endl;
+            if ( changed_alot )
+            {
+                objects[i] = obj;
+                changed_alot = false;
+            }
+            else
+            {
+                objects[i] = temp;
+                changed_alot = true;
+            }
+        }
+        else
+            objects[i] = obj;
     }
 
     ROS_INFO("Objects data updated");

@@ -104,6 +104,7 @@ private:
     // Object
 public:
     std::vector< object > objects;
+    bool changed_alot { false };
 
     // game states
     enum game_states { s_init, s_prague, s_brno };

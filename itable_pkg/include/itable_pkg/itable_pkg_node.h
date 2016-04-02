@@ -80,6 +80,7 @@ struct object
     float width;
     float height;
     float angle;
+    std::string type;
 };
 
 
@@ -143,6 +144,9 @@ private:
     int object_mode {1}; // 0 mask + offest 1 static 2 auto
     float object_offset { 200 };
     double max_corr_dist {0.08};
+
+    // Objects icons
+
 
     // Flags
     bool calculate_marker       {true};

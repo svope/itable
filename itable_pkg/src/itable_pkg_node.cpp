@@ -292,7 +292,7 @@ namespace itable
         std::vector<pcl::PointIndices> cluster_indices;
 
         pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
-        ec.setClusterTolerance (0.01); // 2cm
+        ec.setClusterTolerance (0.02); // 2cm
         ec.setMinClusterSize (100);
         ec.setMaxClusterSize (400);
         ec.setSearchMethod (tree);
@@ -300,7 +300,7 @@ namespace itable
         ec.extract (cluster_indices);
 
         pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-        icp.setMaximumIterations (10);
+        icp.setMaximumIterations (300);
         // Set the max correspondence distance to 5cm (e.g., correspondences with higher distances will be ignored)
         icp.setMaxCorrespondenceDistance ( max_corr_dist );
         icp.setInputTarget (cloud_box);
@@ -330,7 +330,7 @@ namespace itable
 
             if (icp.hasConverged ())
             {
-                std::cout << "\nICP has converged, score is " << icp.getFitnessScore () << std::endl;
+                std::cout << "\nICP has converged, score is " << icp.getFitnessScore () << " and size "<< cloud_cluster->size() << std::endl;
                 //std::cout << "number of points " << cloud_cluster->size() << " box "<< cloud_box->size()<<std::endl;
                 if ( icp.getFitnessScore () < min_score )
                 {
