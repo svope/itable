@@ -1,10 +1,8 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(itable_pkg)
 
-## Find catkin macros and libraries
-## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
-## is used, also find other catkin packages
-SET(CMAKE_CXX_FLAGS "-std=c++0x")
+#Could make some problems with linking PCL libraries not compiled from source with c++11 
+#SET(CMAKE_CXX_FLAGS "-std=c++0x")
 
 find_package(OpenCV REQUIRED )
 find_package(catkin REQUIRED COMPONENTS

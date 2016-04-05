@@ -56,6 +56,7 @@ namespace itable
         private_handle.getParam("mask_offest",mask_offset);
         private_handle.getParam("min_mask_depth",min_mask_depth);
         private_handle.getParam("max_mask_depth",max_mask_depth);
+
         // Objects
         private_handle.getParam("calculate_object",calculate_object);
         private_handle.getParam("object_mode",temp);
@@ -69,6 +70,8 @@ namespace itable
         private_handle.getParam("object_offest",object_offset);
         private_handle.getParam("min_cloud_depth",min_cloud_depth);
         private_handle.getParam("max_cloud_depth",max_cloud_depth);
+        private_handle.getParam("calculate_icons",calculate_icons);
+        private_handle.getParam("icons_files",icons_files);
 
         private_handle.getParam("max_corr_distance",max_corr_dist);
 
@@ -390,6 +393,58 @@ namespace itable
         new_object.width        = b_box.size.width;
         new_object.height       = b_box.size.height;
         new_object.angle        = b_box.angle;
+        new_object.icon_name    = "";
+
+        if ( calculate_icons )
+        {
+            cv::Rect bounding_rect = minAreaRect(boxx).boundingRect();
+            cv::Mat obj_icon = rgb_img( bounding_rect );
+
+            // Detect keypoint with SURF det.
+            cv::SurfFeatureDetector detector( 800 );
+            std::vector<cv::KeyPoint> keypoints_obj;
+
+            detector.detect( obj_icon, keypoints_obj );
+
+            // Calculate descriptors (feature vectors)
+            cv::SurfDescriptorExtractor extractor;
+            cv::Mat descriptors_obj;
+            extractor.compute( obj_icon, keypoints_obj, descriptors_obj );
+
+            // Matching descriptor vectors using FLANN matcher + KNN
+            cv::FlannBasedMatcher matcher;
+            std::vector< std::vector< cv::DMatch >  > matches;
+
+            std::vector< int > good_match_count;
+            for ( std::vector < icon_data >::iterator it = icons.begin() ; it != icons.end() ; it++ )
+            {
+                matches.clear();
+                matcher.knnMatch( descriptors_obj, it->descriptor, matches, 2 ); // find the 2 nearest neighbors
+
+                std::vector< cv::DMatch > good_matches;
+                float nndrRatio = 0.50f;
+
+                for (size_t i = 0; i < matches.size(); ++i)
+                {
+                    if (matches[i].size() < 2)
+                                continue;
+
+                    const cv::DMatch &m1 = matches[i][0];
+                    const cv::DMatch &m2 = matches[i][1];
+
+                    if(m1.distance <= nndrRatio * m2.distance)
+                        good_matches.push_back(m1);
+                }
+
+                good_match_count.push_back( good_matches.size() );
+            }
+
+            std::vector<int>::iterator max_element_it;
+
+            max_element_it = std::max_element(good_match_count.begin(), good_match_count.end());
+
+            new_object.icon_name = icons[ std::distance(good_match_count.begin(), max_element_it) ].icon_name ;
+        }
 
         objects.push_back(new_object);
         publish_objects();
@@ -669,7 +724,47 @@ namespace itable
             }
             else
                 object_box_loaded = true;
+
+            if ( calculate_icons )
+            {
+                cv::SurfFeatureDetector detector( 800 );
+                std::vector< cv::KeyPoint> keypoints_icon;
+                cv::SurfDescriptorExtractor extractor;
+
+                std::stringstream all_files( icons_files );
+                std::string filename;
+                std::vector< std::string > filenames;
+
+                while(std::getline(all_files, filename, ','))
+                {
+                    filenames.push_back(filename);
+                }
+
+                for ( std::vector< std::string >::iterator it = filenames.begin() ; it != filenames.end(); it++)
+                {
+                    cv::Mat img = cv::imread( package_dir_path + "icons/" + *it, CV_LOAD_IMAGE_GRAYSCALE );
+
+                    if( !img.data )
+                    {
+                        ROS_ERROR("Could NOT load icon image file %s. Icons matching could be invalid",it->c_str() );
+                        continue;
+                    }
+                    else // Icon loaded, let's compute some descriptors
+                    {
+                        keypoints_icon.clear();
+                        cv::Mat descriptors_icon;
+                        icon_data icon;
+                        detector.detect( img, keypoints_icon );
+                        extractor.compute( img, keypoints_icon, descriptors_icon );
+                        icon.icon_name = *it;
+                        icon.descriptor = descriptors_icon;
+                        icons.push_back( icon );
+                    }
+                }
+            }
         }
+
+
 
         ROS_INFO("Data from files loaded successfully");
     }

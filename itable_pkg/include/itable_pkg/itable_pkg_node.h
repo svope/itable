@@ -1,6 +1,10 @@
 #ifndef _ITABLE_PKG_NODE
 #define _ITABLE_PKG_NODE
 
+#include <algorithm>
+#include <iostream>
+#include <vector>
+
 #include "ros/ros.h"
 
 #include "itable_pkg/marker_location.h"
@@ -80,7 +84,7 @@ struct object
     float width;
     float height;
     float angle;
-    std::string type;
+    std::string icon_name;
 };
 
 
@@ -102,6 +106,7 @@ public:
     void publish_proj_cam();
 
 private:
+    struct icon_data;
 
     //pcl::PointCloud<pcl::PointXYZ> PointCloud;
     pcl::PointCloud<pcl::Normal>::Ptr box_normals;
@@ -146,7 +151,8 @@ private:
     double max_corr_dist {0.08};
 
     // Objects icons
-
+    std::vector < icon_data > icons;
+    std::string icons_files;
 
     // Flags
     bool calculate_marker       {true};
@@ -157,6 +163,7 @@ private:
 
     bool calculate_object       {true};
     bool object_box_loaded      {false};
+    bool calculate_icons        {true};
 
     bool cam_info_set           {false};
 
@@ -197,6 +204,12 @@ private:
     void backproject_pixel_to_3D( std::vector<cv::Point3f>& input, std::vector<cv::Point3f>& output);
     cv::Point2f project3D_to_pixel(cv::Point3f point3D);
     cv::Point3f backproject_pixel_to_3D( cv:: Point2f, float depth);
+
+    struct icon_data
+    {
+        std::string icon_name;
+        cv::Mat descriptor;
+    };
 
 };
 

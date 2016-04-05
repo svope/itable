@@ -75,7 +75,7 @@ public:
     void create_window(int width, int height, std::string window_name, bool fullscreen = true);
     void load_data();
     void display(){window->display();}
-    void clear_window(){ window->clear(sf::Color::White);}
+    void clear_window(){ window->clear(sf::Color::Black);}
     void draw_mask();
     void draw_objects();
     void events();
