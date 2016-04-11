@@ -43,7 +43,7 @@ add_executable(itable_demo_node src/itable_demo_node.cpp)
 
 ## Specify libraries to link a library or executable target against
  target_link_libraries(itable_demo_node
-  ${OpenCV_LIBS} ${catkin_LIBRARIES} ${SFML_LIBRARIES}
+  ${OpenCV_LIBS} ${catkin_LIBRARIES} ${SFML_LIBRARIES} -lsfeMovie
  )
 
 

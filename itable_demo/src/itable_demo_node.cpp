@@ -7,19 +7,70 @@ namespace itable
 itable_demo::itable_demo()
 {
     // Create triggers
-    prague_trigger = sf::CircleShape(40.f);
-    prague_trigger.setPosition(425,250);
-    prague_trigger.setFillColor( sf::Color::Transparent);
-    prague_trigger.setOutlineThickness(5.f);
-    prague_trigger.setOutlineColor( sf::Color::Red );
 
-    brno_trigger = sf::CircleShape(40.f);
-    brno_trigger.setPosition( 830,500);
-    brno_trigger.setFillColor( sf::Color::Transparent);
-    brno_trigger.setOutlineThickness(5.f);
-    brno_trigger.setOutlineColor( sf::Color::Red );
+    prague_trigger.setPosition(380,350);
+    sf::Texture* prague_icon = new sf::Texture();
+    if (!prague_icon->loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/maps/prague_icon.png"))
+    {
+        ROS_ERROR("Cannot load image file ");
+    }
+    prague_icon->setSmooth(true);
+    prague_trigger.setTexture(*prague_icon);
 
-    trig = new Trigger(&window, "/home/petr/catkin_ws/src/itable_demo/data/square.png", &prague_trigger );
+
+    brno_trigger.setPosition( 780,730);
+
+    sf::Texture* brno_icon = new sf::Texture();
+    if (!brno_icon->loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/maps/brno_icon.png"))
+    {
+        ROS_ERROR("Cannot load image file ");
+    }
+    brno_icon->setSmooth(true);
+    brno_trigger.setTexture(*brno_icon);
+
+    trig_prague = new Trigger(&window, "/home/petr/catkin_ws/src/itable_demo/data/square.png", &prague_trigger );
+    trig_brno   = new Trigger(&window, "/home/petr/catkin_ws/src/itable_demo/data/square.png", &brno_trigger );
+
+    // movies load and positioning
+    if (!movie_prague.openFromFile("/home/petr/catkin_ws/src/itable_demo/data/prague.mp4"))
+        {
+            std::cout <<"neporadilo se nahrat video praha" << std::endl;
+        }
+
+    float tmp = 1920.0 / win_width;
+    float pos_y = win_height - 1080 * tmp;
+    movie_prague.fit(0, pos_y / 2.0, win_width, 1080 * tmp);
+
+    if (!movie_brno.openFromFile("/home/petr/catkin_ws/src/itable_demo/data/brno.mp4"))
+    {
+        std::cout <<"neporadilo se nahrat video brno" << std::endl;
+    }
+    movie_brno.fit(0, pos_y / 2.0, win_width, 1080 * tmp);
+
+    // Font etc
+    if (!font.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/arial.ttf"))
+    {
+        ROS_ERROR("Could not load font");
+    }
+    // set font
+    text_brno.setFont(font);
+
+    // set the character size
+    text_brno.setCharacterSize(28); // in pixels, not points!
+
+    // set the color
+    text_brno.setColor(sf::Color::White);
+
+    // set font
+    text_prague.setFont(font);
+
+    // set the character size
+    text_prague.setCharacterSize(28); // in pixels, not points!
+
+    // set the color
+    text_prague.setColor(sf::Color::White);
+    text_prague.setString(L"Praha je hlavní a současně největší město České republiky a 15. největší město Evropské unie.\nLeží mírně na sever od středu Čech na řece Vltavě, uvnitř Středočeského kraje, jehož je \nsprávním centrem, ale jako samostatný kraj není jeho součástí. Je sídlem velké části státních \ninstitucí a množství dalších organizací a firem. Sídlí zde prezident republiky, parlament, vláda,\n ústřední státní orgány a jeden ze dvou vrchních soudů.");
+
 
 }
 
@@ -70,11 +121,12 @@ void itable_demo::object_callback(const itable_pkg::objects& msg)
     {
         object obj;
 
-        obj.x      = msg.objects[i].center_x;
-        obj.y      = msg.objects[i].center_y;
-        obj.width  = msg.objects[i].width;
-        obj.height = msg.objects[i].height;
-        obj.angle  = msg.objects[i].angle;
+        obj.x         = msg.objects[i].center_x;
+        obj.y         = msg.objects[i].center_y;
+        obj.width     = msg.objects[i].width;
+        obj.height    = msg.objects[i].height;
+        obj.angle     = msg.objects[i].angle;
+        obj.icon_name = msg.objects[i].icon;
 
         std::cout << obj.x << " " << obj.y << std::endl;
 
@@ -99,12 +151,15 @@ void itable_demo::object_callback(const itable_pkg::objects& msg)
     ROS_INFO("Objects data updated");
 }
 
-void itable_demo::create_window(int width, int height, std::string window_name, bool fullscreen )
+void itable_demo::create_window(std::string window_name, bool fullscreen )
 {
     if ( fullscreen )
-        window =  new sf::RenderWindow(sf::VideoMode(width,height),window_name,sf::Style::Fullscreen);
+        window =  new sf::RenderWindow(sf::VideoMode(win_width,win_height),window_name,sf::Style::Fullscreen);
     else
-        window = new sf::RenderWindow(sf::VideoMode(width,height),window_name,sf::Style::Resize);
+        window = new sf::RenderWindow(sf::VideoMode(win_width,win_height),window_name,sf::Style::Resize);
+
+    window->setFramerateLimit(60);
+
 }
 
 void itable_demo::load_data()
@@ -128,11 +183,18 @@ void itable_demo::load_data()
     prague.setTexture(*(textures[1]));
     map_CR.setTexture(*(textures[2]));
 
-    sf::Vector2f targetSize(1280.0, 800.0);
+    sf::Vector2f targetSize(win_width, win_height);
 
     brno.setScale(   targetSize.x / brno.getLocalBounds().width,   targetSize.y / brno.getLocalBounds().height );
     prague.setScale( targetSize.x / prague.getLocalBounds().width, targetSize.y / prague.getLocalBounds().height);
     map_CR.setScale( targetSize.x / map_CR.getLocalBounds().width, targetSize.y / map_CR.getLocalBounds().height);
+
+    int offset_x,offset_y;
+    int map_width = map_CR.getGlobalBounds().width;
+    int map_height = map_CR.getGlobalBounds().height;
+    offset_x = win_width - map_width;
+    offset_y = win_height - map_height;
+    map_CR.setPosition(offset_x / 2, offset_y / 2);
 }
 
 void itable_demo::draw_mask()
@@ -149,10 +211,20 @@ void itable_demo::draw_objects()
         rect.setOrigin(it->width / 2.0, it->height / 2.0);
         rect.setRotation(it->angle);
         rect.setPosition( it->x, it->y );
-        rect.setFillColor(sf::Color::Red);
+        rect.setFillColor(sf::Color::Black);
         window->draw( rect );
     }
 
+}
+
+void Trigger::draw_object(object &obj)
+{
+    sf::RectangleShape rect( sf::Vector2f(obj.width,obj.height) );
+    rect.setOrigin(obj.width / 2.0, obj.height / 2.0);
+    rect.setRotation(obj.angle);
+    rect.setPosition( obj.x, obj.y );
+    rect.setFillColor(sf::Color::Black);
+    (*window)->draw( rect );
 }
 
 void itable_demo::events()
@@ -187,6 +259,14 @@ void itable_demo::events()
             {
                 objects[0].y -= 5;
             }
+            if ( event.key.code == sf::Keyboard::X)
+            {
+                objects[0].icon_name = "cross";
+            }
+            if ( event.key.code == sf::Keyboard::C)
+            {
+                objects[0].icon_name = "";
+            }
         }
     }
 }
@@ -194,60 +274,104 @@ void itable_demo::events()
 
 void itable_demo::game()
 {
+
     switch( game_state )
     {
     case s_init:
         window->draw(map_CR);
-        window->draw( *(trig->draw()) );
-        window->draw(brno_trigger);
+        window->draw( *(trig_prague->draw()) );
+        window->draw( *(trig_brno->draw()));
 
-        draw_objects();
+
         if ( !objects.empty() )
         {
-            if ( trig->update( objects[0]) )
-                game_state = s_prague;
-
-            /*
-            sf::FloatRect pragueBB = prague_trigger.getGlobalBounds();
-            sf::FloatRect brnoBB   = brno_trigger.getGlobalBounds();
-
-            // check collision with a point
-            sf::Vector2f object_center( objects[0].x, objects[0].y);
-            if (pragueBB.contains(object_center))
+            if ( trig_prague->update( objects[0]) )
             {
-                std::cout << "PRAGUE" << std::endl;
-                game_state = s_prague;
+                std::string next_state = trig_prague->getIcon();
+                if ( next_state == "history")
+                    game_state = s_prague_hist;
+                else if (next_state == "movie")
+                    game_state = s_prague_movie;
+                else
+                    game_state = s_prague_hist;
             }
-            else if (  brnoBB.contains( object_center) )
+            else if ( trig_brno->update( objects[0]) )
             {
-                std::cout << "BRNO" << std::endl;
-                game_state = s_brno;
+                std::string next_state = trig_brno->getIcon();
+                if ( next_state == "history")
+                    game_state = s_brno_hist;
+                else if (next_state == "movie")
+                    game_state = s_brno_movie;
+                else
+                    game_state = s_brno_movie;
             }
-            */
         }
 
         break;
 
-    case s_prague:
-        window->draw(prague);
 
+    case s_prague_movie:
 
+        if ( movie_prague.getStatus() != sfe::Status::Playing )
+            movie_prague.play();
+        movie_prague.update();
+        window->draw(movie_prague);
+        if ( !objects.empty() )
+        {
+            if ( objects[0].icon_name == "cross")
+            {
+                movie_prague.pause();
+                game_state = s_init;
+            }
+        }
         break;
 
-    case s_brno:
+    case s_prague_hist:
+        window->draw(prague);
+        window->draw(text_prague);
+        if ( !objects.empty() )
+        {
+            if ( objects[0].icon_name == "cross")
+            {
+                game_state = s_init;
+            }
+        }
+        break;
+
+    case s_brno_movie:
+        if ( movie_brno.getStatus() != sfe::Status::Playing )
+            movie_brno.play();
+        movie_brno.update();
+        window->draw(movie_brno);
+        if ( !objects.empty() )
+        {
+            if ( objects[0].icon_name == "cross")
+            {
+                movie_brno.pause();
+                game_state = s_init;
+            }
+        }
+        break;
+
+    case s_brno_hist:
         window->draw(brno);
-
-
+        if ( !objects.empty() )
+        {
+            if ( objects[0].icon_name == "cross")
+            {
+                game_state = s_init;
+            }
+        }
         break;
 
     default:
         ROS_ERROR("Game state unknown");
         break;
     }
-
+    draw_objects();
 }
 
-Trigger::Trigger(sf::RenderWindow** win,std::string file_path, sf::CircleShape* cs)
+Trigger::Trigger(sf::RenderWindow** win,std::string file_path, sf::Sprite* cs)
 {
     window = win;
     file = file_path;
@@ -275,46 +399,93 @@ bool Trigger::update( object obj )
         {
             timer.restart();
             ticking = true;
+            for ( int &i : icon_count)
+            {
+                icon_count[i] = 0;
+            }
         }
         else
         {
-            sprite->setScale(   (obj.width / 2.0) / sprite->getLocalBounds().width,   (obj.height / 2.0) / sprite->getLocalBounds().height );
+            //draw_object(obj);
+            sprite->setScale(   (obj.width ) / sprite->getLocalBounds().width,   (obj.height) / sprite->getLocalBounds().height );
             if ( timer.getElapsedTime().asSeconds() < 0.5f )
             {
-                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) );
+                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) - obj.height);
                 (*window)->draw(*sprite);
             }
             else if ( timer.getElapsedTime().asSeconds() < 1.0f )
             {
-                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) );
+                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) - obj.height);
                 (*window)->draw(*sprite);
-                sprite->setPosition( obj.x , obj.y - (obj.height / 2.0) );
+                sprite->setPosition( obj.x +  (obj.width / 2.0), obj.y - (obj.height / 2.0) );
                 (*window)->draw(*sprite);
             }
             else if ( timer.getElapsedTime().asSeconds() < 1.5f )
             {
-                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) );
+                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) - obj.height);
                 (*window)->draw(*sprite);
-                sprite->setPosition( obj.x , obj.y - (obj.height / 2.0) );
+                sprite->setPosition( obj.x +  (obj.width / 2.0), obj.y - (obj.height / 2.0) );
                 (*window)->draw(*sprite);
-                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y  );
+                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y + (obj.height / 2.0)  );
                 (*window)->draw(*sprite);
             }
             else if ( timer.getElapsedTime().asSeconds() < 2.0f )
             {
-                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) );
+                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) - obj.height);
                 (*window)->draw(*sprite);
-                sprite->setPosition( obj.x , obj.y - (obj.height / 2.0) );
+                sprite->setPosition( obj.x +  (obj.width / 2.0), obj.y - (obj.height / 2.0) );
                 (*window)->draw(*sprite);
-                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y  );
+                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y + (obj.height / 2.0) );
                 (*window)->draw(*sprite);
-                sprite->setPosition( obj.x , obj.y );
+                sprite->setPosition( obj.x -  (obj.width / 2.0) - obj.width, obj.y - (obj.height / 2.0) );
                 (*window)->draw(*sprite);
             }
             else if ( timer.getElapsedTime().asSeconds() > 2.0f )
             {
+                int max = 0,max_index = 4;
+                for ( int &i : icon_count)
+                {
+                    if ( icon_count[i] > max )
+                    {
+                        max = icon_count[i];
+                        max_index = i;
+                    }
+                }
+
+                switch ( max_index )
+                {
+                case 0:
+                    icon_name = "history";
+                    break;
+                case 1:
+                    icon_name = "city";
+                    break;
+                case 2:
+                    icon_name = "movie";
+                    break;
+                case 3:
+                    icon_name = "cross";
+                    break;
+                case 4:
+                    icon_name = "";
+                    break;
+                default:break;
+                }
+
+                ticking = false;
                 return true;
             }
+
+            if ( obj.icon_name == "history")
+                icon_count[0]++;
+            else if ( obj.icon_name == "city")
+                icon_count[1]++;
+            else if ( obj.icon_name == "movie")
+                icon_count[2]++;
+            else if (obj.icon_name == "cross")
+                icon_count[3]++;
+            else //null
+                icon_count[4]++;
 
         }
 
@@ -334,7 +505,7 @@ int main(int argc, char** argv)
     itable::itable_demo demo;
 
     demo.ros_init();
-    demo.create_window(1280,1024,"Game window",false);
+    demo.create_window("Game window",false);
     //demo.window = new sf::RenderWindow(sf::VideoMode(960,540),"temp",sf::Style::Resize);
     demo.load_data();
 
@@ -342,8 +513,8 @@ int main(int argc, char** argv)
     itable::object obj;
     obj.width = 30;
     obj.height = 30;
-    obj.x = 100;
-    obj.y = 100;
+    obj.x = 300;
+    obj.y = 300;
     obj.angle = 0;
 
     demo.objects.push_back(obj);

@@ -33,6 +33,7 @@
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
 
+#include "sfeMovie/Movie.hpp"
 
 namespace itable
 {
@@ -45,26 +46,33 @@ struct object
     float width;
     float height;
     float angle;
+    std::string icon_name;
 };
 
 class Trigger
 {
 public:
-    Trigger(sf::RenderWindow** win,std::string file_path, sf::CircleShape* cs);
+    Trigger(sf::RenderWindow** win,std::string file_path, sf::Sprite* cs);
     bool update( object obj );
-    sf::Shape* draw() { return circles; }
+    sf::Sprite* draw() { return circles; }
+    std::string getIcon( ) { return icon_name;}
 private:
+    std::string icon_name;
     std::string file;
     sf::Texture* tex;
     sf::Sprite*  sprite;
-    sf::Shape* circles;
+    sf::Sprite* circles;
     sf::RenderWindow** window;
     sf::Clock timer;
+    // 0 hist,1 city, 2 movie, 3 cross, 4 null
+    int icon_count[5] {0,0,0,0,0};
     bool ticking {false};
+    void draw_object(object &obj);
 };
 
 class itable_demo
 {
+
 public:
     // Initialize "ROS things" - subscribe to topics etc.
     void ros_init();
@@ -72,7 +80,7 @@ public:
 
     itable_demo();
     bool running(){ return demo_running;}
-    void create_window(int width, int height, std::string window_name, bool fullscreen = true);
+    void create_window(std::string window_name, bool fullscreen = true);
     void load_data();
     void display(){window->display();}
     void clear_window(){ window->clear(sf::Color::Black);}
@@ -107,7 +115,7 @@ public:
     bool changed_alot { false };
 
     // game states
-    enum game_states { s_init, s_prague, s_brno };
+    enum game_states { s_init, s_prague, s_brno_hist, s_brno_movie, s_prague_hist, s_prague_movie };
     game_states game_state { s_init };
     bool demo_running { true };
 
@@ -117,10 +125,25 @@ public:
     sf::Sprite map_CR;
     sf::Sprite prague,brno;
 
+    // Movies to load
+    sfe::Movie movie_brno;
+    sfe::Movie movie_prague;
+
     // Triggers
-    itable::Trigger* trig;
-    sf::CircleShape prague_trigger;
-    sf::CircleShape brno_trigger;
+    itable::Trigger* trig_prague;
+    itable::Trigger* trig_brno;
+    sf::Sprite prague_trigger;
+    sf::Sprite brno_trigger;
+
+    // Window res
+    int win_width {1280};
+    int win_height{1024};
+
+    // Font
+    sf::Font font;
+    sf::Text text_brno;
+    sf::Text text_prague;
+
 
     // Timer
     bool ticking { false };
