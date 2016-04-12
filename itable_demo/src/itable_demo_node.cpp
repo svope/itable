@@ -72,6 +72,14 @@ itable_demo::itable_demo()
     text_prague.setString(L"Praha je hlavní a současně největší město České republiky a 15. největší město Evropské unie.\nLeží mírně na sever od středu Čech na řece Vltavě, uvnitř Středočeského kraje, jehož je \nsprávním centrem, ale jako samostatný kraj není jeho součástí. Je sídlem velké části státních \ninstitucí a množství dalších organizací a firem. Sídlí zde prezident republiky, parlament, vláda,\n ústřední státní orgány a jeden ze dvou vrchních soudů.");
 
 
+    // create quiz
+    questions.push_back( question("Krusne hory", sf::Vector2f(577,302)) );
+    questions.push_back( question("Cerny les", sf::Vector2f(400,885)) );
+    questions.push_back( question("Sumava", sf::Vector2f(719,1174)) );
+    questions.push_back( question("Krkonose", sf::Vector2f(1457,220)) );
+    questions.push_back( question("Orlicke hory", sf::Vector2f(1700,440)) );
+    questions.push_back( question("Moravskoslezske Beskydy", sf::Vector2f(2400,900)) );
+
 }
 
 void itable_demo::ros_init()
@@ -79,6 +87,21 @@ void itable_demo::ros_init()
     mask_sub    = node_handle.subscribe("/mask_data", 1, &itable_demo::mask_callback,this);
     marker_sub  = node_handle.subscribe("/marker_data",1, &itable_demo::marker_callback,this);
     object_sub  = node_handle.subscribe("/objects_data",1, &itable_demo::object_callback,this);
+    icon_sub    = node_handle.subscribe("/ar_pose_marker", 1, &itable_demo::icon_callback,this);
+
+}
+
+void itable_demo::icon_callback(const ar_track_alvar_msgs::AlvarMarkers::ConstPtr& icon)
+{
+    ROS_INFO_ONCE("Icon callback");
+    //if ( trig_prague->is_ticking() || trig_brno->is_ticking() )
+    {
+        for ( auto it = icon->markers.begin(); it != icon->markers.end() ; it++)
+        {
+            last_icon_id = it->id;
+        }
+    }
+
 
 }
 
@@ -126,7 +149,6 @@ void itable_demo::object_callback(const itable_pkg::objects& msg)
         obj.width     = msg.objects[i].width;
         obj.height    = msg.objects[i].height;
         obj.angle     = msg.objects[i].angle;
-        obj.icon_name = msg.objects[i].icon;
 
         std::cout << obj.x << " " << obj.y << std::endl;
 
@@ -158,15 +180,14 @@ void itable_demo::create_window(std::string window_name, bool fullscreen )
     else
         window = new sf::RenderWindow(sf::VideoMode(win_width,win_height),window_name,sf::Style::Resize);
 
-    window->setFramerateLimit(60);
-
+    window->setVerticalSyncEnabled(true);
 }
 
 void itable_demo::load_data()
 {
     img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/maps/brno.png");
     img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/maps/praha.jpg");
-    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/maps/CR.png");
+    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/maps/map_CR.png");
 
     for ( std::vector< std::string >::iterator it = img_files.begin(); it != img_files.end(); it++)
     {
@@ -195,6 +216,17 @@ void itable_demo::load_data()
     offset_x = win_width - map_width;
     offset_y = win_height - map_height;
     map_CR.setPosition(offset_x / 2, offset_y / 2);
+
+
+    // quiz
+    if (!CR_mount.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/maps/CR_hory.png"))
+    {
+        ROS_ERROR("Cannot load image file CR_hory");
+    }
+    CR_mount.setSmooth(true);
+    quiz_map.setTexture(CR_mount);
+    quiz_map.setScale( targetSize.x / map_CR.getLocalBounds().width, targetSize.y / map_CR.getLocalBounds().height );
+    quiz_map.setPosition(0,250);
 }
 
 void itable_demo::draw_mask()
@@ -259,14 +291,7 @@ void itable_demo::events()
             {
                 objects[0].y -= 5;
             }
-            if ( event.key.code == sf::Keyboard::X)
-            {
-                objects[0].icon_name = "cross";
-            }
-            if ( event.key.code == sf::Keyboard::C)
-            {
-                objects[0].icon_name = "";
-            }
+
         }
     }
 }
@@ -287,25 +312,46 @@ void itable_demo::game()
         {
             if ( trig_prague->update( objects[0]) )
             {
-                std::string next_state = trig_prague->getIcon();
-                if ( next_state == "history")
+                //std::string next_state = trig_prague->getIcon();
+                if ( last_icon_id == 1 )
                     game_state = s_prague_hist;
-                else if (next_state == "movie")
+                else if (last_icon_id == 0)
                     game_state = s_prague_movie;
                 else
                     game_state = s_prague_hist;
             }
             else if ( trig_brno->update( objects[0]) )
             {
-                std::string next_state = trig_brno->getIcon();
-                if ( next_state == "history")
+                //std::string next_state = trig_brno->getIcon();
+                if ( last_icon_id == 1)
                     game_state = s_brno_hist;
-                else if (next_state == "movie")
+                else if (last_icon_id == 0)
                     game_state = s_brno_movie;
                 else
                     game_state = s_brno_movie;
             }
+            //else
+            //    last_icon_id = -1;
         }
+
+        break;
+
+    case s_quiz:
+    {
+        if ( questions.empty() )
+            questions = answered_q;
+
+        int index = rand() % questions.size();
+        actual_q = questions[index];
+
+        game_state = s_asked;
+
+        break;
+    }
+
+    case s_asked:
+
+
 
         break;
 
@@ -318,7 +364,7 @@ void itable_demo::game()
         window->draw(movie_prague);
         if ( !objects.empty() )
         {
-            if ( objects[0].icon_name == "cross")
+            if ( last_icon_id == 2)
             {
                 movie_prague.pause();
                 game_state = s_init;
@@ -331,7 +377,7 @@ void itable_demo::game()
         window->draw(text_prague);
         if ( !objects.empty() )
         {
-            if ( objects[0].icon_name == "cross")
+            if ( last_icon_id == 2 )
             {
                 game_state = s_init;
             }
@@ -343,21 +389,23 @@ void itable_demo::game()
             movie_brno.play();
         movie_brno.update();
         window->draw(movie_brno);
+
         if ( !objects.empty() )
         {
-            if ( objects[0].icon_name == "cross")
+            if ( last_icon_id == 2)
             {
                 movie_brno.pause();
                 game_state = s_init;
             }
         }
+
         break;
 
     case s_brno_hist:
         window->draw(brno);
         if ( !objects.empty() )
         {
-            if ( objects[0].icon_name == "cross")
+            if ( last_icon_id == 2)
             {
                 game_state = s_init;
             }
@@ -475,18 +523,6 @@ bool Trigger::update( object obj )
                 ticking = false;
                 return true;
             }
-
-            if ( obj.icon_name == "history")
-                icon_count[0]++;
-            else if ( obj.icon_name == "city")
-                icon_count[1]++;
-            else if ( obj.icon_name == "movie")
-                icon_count[2]++;
-            else if (obj.icon_name == "cross")
-                icon_count[3]++;
-            else //null
-                icon_count[4]++;
-
         }
 
     }

@@ -4,4 +4,3 @@ float32 center_y
 float32 width
 float32 height
 float32 angle
-string  icon

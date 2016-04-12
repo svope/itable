@@ -35,9 +35,6 @@
   <arg name="max_cloud_depth" 	default="1500"/>
   <!-- Parametr of method ICP - MaxCorrespondenceDistance. Could be usefull when no object is found -->
   <arg name="max_corr_distance"				default="0.8" />
-  <!-- Should icons be recognized? -->
-  <arg name="calculate_icons"				default="true" />
-  <arg name="icons_files"					default="city.jpg,history.jpg" />
 
   
   <node pkg="itable_pkg" type="itable_pkg_node" name="itable_pkg" output="screen">
@@ -48,7 +45,7 @@
     <param name="marker_path"       type="str"    value="$(arg marker_path)"/>
     <param name="recal_marker_time" type="double" value="$(arg recal_marker_time)"/>
     
-    <param name="calculate_mask"  	type="bool"   value="$(arg calculate_marker)"/>
+    <param name="calculate_mask"  	type="bool"   value="$(arg calculate_mask)"/>
     <param name="mask_mode"			type="str"	  value="$(arg mask_mode)"/>
     <param name="mask_offset"   	type="double" value="$(arg mask_offset)"/>
     <param name="min_mask_depth"    type="double" value="$(arg min_mask_depth)"/>
@@ -59,8 +56,6 @@
     <param name="object_offset"   	type="double" value="$(arg object_offset)"/>
     <param name="min_cloud_depth"   type="double" value="$(arg min_cloud_depth)"/>
     <param name="max_cloud_depth"   type="double" value="$(arg max_cloud_depth)"/>
-    <param name="calculate_icons"	type="bool"	  value="$(arg calculate_icons)" />
-  	<param name="icons_files"		type="str"	  value="$(arg icons_files)" />
     
     <param name="max_corr_distance"	type="double" value="$(arg max_corr_distance)"/>
   </node>

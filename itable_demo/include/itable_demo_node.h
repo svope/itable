@@ -3,7 +3,7 @@
 
 
 #include <iostream>
-
+#include <cstdlib>
 
 #include "ros/ros.h"
 
@@ -21,6 +21,8 @@
 #include "opencv2/features2d/features2d.hpp"
 #include "opencv2/calib3d/calib3d.hpp"
 #include "opencv2/nonfree/nonfree.hpp"
+
+#include <ar_track_alvar_msgs/AlvarMarkers.h>
 
 #include <cv_bridge/cv_bridge.h>
 
@@ -46,7 +48,14 @@ struct object
     float width;
     float height;
     float angle;
-    std::string icon_name;
+};
+
+struct question
+{
+    sf::Vector2f pos;
+    std::string  mount;
+    question(std::string s, sf::Vector2f v) : mount(s), pos(v){}
+    question(){}
 };
 
 class Trigger
@@ -56,6 +65,7 @@ public:
     bool update( object obj );
     sf::Sprite* draw() { return circles; }
     std::string getIcon( ) { return icon_name;}
+    bool is_ticking() { return ticking;}
 private:
     std::string icon_name;
     std::string file;
@@ -98,24 +108,29 @@ private:
     ros::Subscriber object_sub;
     ros::Subscriber marker_sub;
     ros::Subscriber projector_camera_sub;
+    ros::Subscriber icon_sub;
 
     void mask_callback( const itable_pkg::mask& msg);
     void marker_callback( const itable_pkg::marker_location& msg);
     void object_callback( const itable_pkg::objects& msg);
-
+    void icon_callback(const ar_track_alvar_msgs::AlvarMarkers::ConstPtr& icon);
     // SFML
     sf::RenderWindow* window;
 
     // Mask
     std::vector< sf::ConvexShape > masks;
 
+    // Homo
+
+
     // Object
 public:
     std::vector< object > objects;
+    int last_icon_id;
     bool changed_alot { false };
 
     // game states
-    enum game_states { s_init, s_prague, s_brno_hist, s_brno_movie, s_prague_hist, s_prague_movie };
+    enum game_states { s_init, s_prague, s_brno_hist, s_brno_movie, s_prague_hist, s_prague_movie , s_quiz, s_asked};
     game_states game_state { s_init };
     bool demo_running { true };
 
@@ -144,10 +159,17 @@ public:
     sf::Text text_brno;
     sf::Text text_prague;
 
+    // Quiz
+    sf::Texture CR_mount;
+    sf::Sprite quiz_map;
+    question actual_q;
+
+    std::vector< question > questions;
+    std::vector< question > answered_q;
 
     // Timer
-    bool ticking { false };
-    sf::Clock timer;
+    //bool ticking { false };
+   // sf::Clock timer;
 };
 
 
