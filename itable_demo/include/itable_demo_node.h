@@ -32,10 +32,14 @@
 #include <message_filters/synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
 
+#include <sensor_msgs/CameraInfo.h>
+
 #include <SFML/Window.hpp>
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 
 #include "sfeMovie/Movie.hpp"
+typedef message_filters::Subscriber<sensor_msgs::CameraInfo> camerainfo_subscriber;
 
 namespace itable
 {
@@ -53,8 +57,8 @@ struct object
 struct question
 {
     sf::Vector2f pos;
-    std::string  mount;
-    question(std::string s, sf::Vector2f v) : mount(s), pos(v){}
+    std::wstring  mount;
+    question(std::wstring s, sf::Vector2f v) : mount(s), pos(v){}
     question(){}
 };
 
@@ -109,11 +113,15 @@ private:
     ros::Subscriber marker_sub;
     ros::Subscriber projector_camera_sub;
     ros::Subscriber icon_sub;
+    camerainfo_subscriber camerainfo_sub;
 
     void mask_callback( const itable_pkg::mask& msg);
     void marker_callback( const itable_pkg::marker_location& msg);
     void object_callback( const itable_pkg::objects& msg);
     void icon_callback(const ar_track_alvar_msgs::AlvarMarkers::ConstPtr& icon);
+    void proj_cam_callback(const itable_pkg::proj_cam_data& msg);
+    void caminfo_callback(const sensor_msgs::CameraInfo& msg_camerainfo);
+    cv::Point3f backproject_pixel_to_3D( cv:: Point2f cam_2D, float depth);
     // SFML
     sf::RenderWindow* window;
 
@@ -121,6 +129,20 @@ private:
     std::vector< sf::ConvexShape > masks;
 
     // Homo
+    cv::Mat homography {cv::Mat(3,3, CV_32F) };
+    bool homo_valid {false};
+    float homo_depth;
+
+    // proj cam
+    cv::Mat intrinsic {cv::Mat(3,3, CV_64F) };
+    cv::Mat dist { cv::Mat(5,1, CV_64F)};
+    cv::Mat rot {cv::Mat(3,1, CV_64F) };
+    cv::Mat trans {cv::Mat(3,1, CV_64F) };
+    bool proj_cam_set { false };
+
+    // cam info
+    bool cam_info_set {false };
+    cv::Mat cam_intrinsic;
 
 
     // Object
@@ -130,8 +152,8 @@ public:
     bool changed_alot { false };
 
     // game states
-    enum game_states { s_init, s_prague, s_brno_hist, s_brno_movie, s_prague_hist, s_prague_movie , s_quiz, s_asked};
-    game_states game_state { s_init };
+    enum game_states { s_init, s_prague, s_brno_hist, s_brno_movie, s_prague_hist, s_prague_movie , s_quiz, s_asked,s_answered,s_not_answered};
+    game_states game_state { s_quiz };
     bool demo_running { true };
 
     // Images to load
@@ -162,14 +184,28 @@ public:
     // Quiz
     sf::Texture CR_mount;
     sf::Sprite quiz_map;
+    sf::Text quiz_text;
     question actual_q;
+    sf::Sprite sprite;
+    sf::Texture sprite_texture;
+    sf::Clock timeout;
+    bool timeout_tick { false };
+    sf::Vector2f last_mount;
+
+    sf::SoundBuffer succ,fail;
+    sf::Sound sound;
+
+    sf::Clock safe_time;
+    bool safe_time_done { false};
+    float last_obj_x;
+    float last_obj_y;
 
     std::vector< question > questions;
     std::vector< question > answered_q;
 
     // Timer
-    //bool ticking { false };
-   // sf::Clock timer;
+    bool ticking { false };
+    sf::Clock timer;
 };
 
 

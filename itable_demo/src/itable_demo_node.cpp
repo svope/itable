@@ -73,12 +73,15 @@ itable_demo::itable_demo()
 
 
     // create quiz
-    questions.push_back( question("Krusne hory", sf::Vector2f(577,302)) );
-    questions.push_back( question("Cerny les", sf::Vector2f(400,885)) );
-    questions.push_back( question("Sumava", sf::Vector2f(719,1174)) );
-    questions.push_back( question("Krkonose", sf::Vector2f(1457,220)) );
-    questions.push_back( question("Orlicke hory", sf::Vector2f(1700,440)) );
-    questions.push_back( question("Moravskoslezske Beskydy", sf::Vector2f(2400,900)) );
+    questions.push_back( question(L"Krušné hory", sf::Vector2f(577,302)) );
+    questions.push_back( question(L"Černý les", sf::Vector2f(400,885)) );
+    questions.push_back( question(L"Šumava", sf::Vector2f(719,1174)) );
+    questions.push_back( question(L"Krkonoše", sf::Vector2f(1457,220)) );
+    questions.push_back( question(L"Orlické hory", sf::Vector2f(1700,440)) );
+    questions.push_back( question(L"Moravskoslezské Beskydy", sf::Vector2f(2400,900)) );
+
+
+
 
 }
 
@@ -88,6 +91,45 @@ void itable_demo::ros_init()
     marker_sub  = node_handle.subscribe("/marker_data",1, &itable_demo::marker_callback,this);
     object_sub  = node_handle.subscribe("/objects_data",1, &itable_demo::object_callback,this);
     icon_sub    = node_handle.subscribe("/ar_pose_marker", 1, &itable_demo::icon_callback,this);
+    projector_camera_sub = node_handle.subscribe("/projector_camera_data",1,&itable_demo::proj_cam_callback,this);
+    camerainfo_sub.subscribe(node_handle, "/kinect2/qhd/camera_info",1);
+
+}
+
+void itable_demo::proj_cam_callback(const itable_pkg::proj_cam_data& msg)
+{
+    ROS_INFO_ONCE("proj_cam_callback called");
+    if ( proj_cam_set )
+        return;
+    else
+    {
+        double* ptrI = intrinsic.ptr<double>(0,0);
+        for ( int i = 0; i < 9; i++, ptrI++)
+        {
+            *ptrI = msg.intrinsic[i];
+        }
+
+        double* ptrD = dist.ptr<double>(0,0);
+        for ( int i = 0; i < 5; i++, ptrD++)
+        {
+            *ptrD = msg.distortion[i];
+        }
+
+        double* ptrR = rot.ptr<double>(0,0);
+        for ( int i = 0; i < 3; i++, ptrR++)
+        {
+            *ptrR = msg.rotation[i];
+        }
+
+        double* ptrT = trans.ptr<double>(0,0);
+        for ( int i = 0; i < 3; i++, ptrT++)
+        {
+            *ptrT = msg.translation[i];
+        }
+        proj_cam_set = true;
+
+        //std::cout << intrinsic <<std::endl << dist <<std::endl << rot << std::endl << trans << std::endl;
+    }
 
 }
 
@@ -100,6 +142,9 @@ void itable_demo::icon_callback(const ar_track_alvar_msgs::AlvarMarkers::ConstPt
         {
             last_icon_id = it->id;
         }
+
+        if ( icon->markers.empty() )
+            last_icon_id = -1;
     }
 
 
@@ -127,7 +172,17 @@ void itable_demo::mask_callback(const itable_pkg::mask& msg)
 
 void itable_demo::marker_callback(const itable_pkg::marker_location& msg)
 {
-    //ROS_INFO ( "marker callback ");
+    ROS_INFO ( "marker callback ");
+    if ( msg.valid )
+    {
+        float* ptrH = homography.ptr<float>(0,0);
+        for ( int i = 0; i < 9; i++, ptrH++)
+        {
+            *ptrH = msg.homography[i];
+        }
+        homo_depth = true;
+        homo_valid = true;
+    }
 
 }
 
@@ -225,8 +280,31 @@ void itable_demo::load_data()
     }
     CR_mount.setSmooth(true);
     quiz_map.setTexture(CR_mount);
-    quiz_map.setScale( targetSize.x / map_CR.getLocalBounds().width, targetSize.y / map_CR.getLocalBounds().height );
-    quiz_map.setPosition(0,250);
+    quiz_map.setScale( targetSize.x / quiz_map.getLocalBounds().width, (targetSize.y - 100)/ quiz_map.getLocalBounds().height );
+    quiz_map.setPosition(0,100);
+
+    quiz_text.setFont(font);
+    quiz_text.setCharacterSize(90); // in pixels, not points!
+    quiz_text.setColor(sf::Color::White);
+
+
+    if ( !sprite_texture.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/square.png") )
+    {
+        ROS_ERROR("Cannot load sprite" );
+    }
+    sprite_texture.setSmooth(true);
+    sprite.setTexture(sprite_texture);
+
+    // sounds
+    if (!succ.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/success.wav"))
+    {
+        ROS_ERROR("Cannot open success.wav file");
+    }
+
+    if (!fail.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/fail.wav"))
+    {
+        ROS_ERROR("Cannot open fail.wav file");
+    }
 }
 
 void itable_demo::draw_mask()
@@ -308,7 +386,7 @@ void itable_demo::game()
         window->draw( *(trig_brno->draw()));
 
 
-        if ( !objects.empty() )
+        if ( !objects.empty() && last_icon_id != 5 ) // 5 ~ back
         {
             if ( trig_prague->update( objects[0]) )
             {
@@ -345,15 +423,198 @@ void itable_demo::game()
         actual_q = questions[index];
 
         game_state = s_asked;
+        safe_time_done = false;
 
         break;
     }
 
     case s_asked:
+        window->draw(quiz_map);
+        quiz_text.setPosition(0,0);
+        quiz_text.setString(actual_q.mount);
+        window->draw(quiz_text);
 
+        if ( safe_time_done == false)
+        {
+            safe_time.restart();
+            safe_time_done = true;
+        }
+        else
+        {
+            if ( safe_time.getElapsedTime().asSeconds() < 2.0f)
+                break;
+        }
+
+        if ( ticking == false )
+        {
+            timer.restart();
+            ticking = true;
+        }
+        else
+        {
+            object obj;
+            if (objects.empty())
+            {
+                ticking = false;
+                break;
+            }
+            else
+                obj = objects[0];
+
+            if ( abs(obj.x - last_obj_x) > 20 || abs( obj.y - last_obj_y) > 20 )
+            {
+                ticking = false;
+                last_obj_x = obj.x;
+                last_obj_y = obj.y;
+                break;
+            }
+
+            sprite.setScale(   (obj.width ) / sprite.getLocalBounds().width,   (obj.height) / sprite.getLocalBounds().height );
+            sprite.setRotation(obj.angle);
+            if ( timer.getElapsedTime().asSeconds() < 0.5f )
+            {
+                sprite.setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) - obj.height);
+                window->draw(sprite);
+            }
+            else if ( timer.getElapsedTime().asSeconds() < 1.0f )
+            {
+                sprite.setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) - obj.height);
+                window->draw(sprite);
+                sprite.setPosition( obj.x +  (obj.width / 2.0), obj.y - (obj.height / 2.0) );
+                window->draw(sprite);
+            }
+            else if ( timer.getElapsedTime().asSeconds() < 1.5f )
+            {
+                sprite.setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) - obj.height);
+                window->draw(sprite);
+                sprite.setPosition( obj.x +  (obj.width / 2.0), obj.y - (obj.height / 2.0) );
+                window->draw(sprite);
+                sprite.setPosition( obj.x - (obj.width / 2.0) , obj.y + (obj.height / 2.0)  );
+                window->draw(sprite);
+            }
+            else if ( timer.getElapsedTime().asSeconds() < 2.0f )
+            {
+                sprite.setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) - obj.height);
+                window->draw(sprite);
+                sprite.setPosition( obj.x +  (obj.width / 2.0), obj.y - (obj.height / 2.0) );
+                window->draw(sprite);
+                sprite.setPosition( obj.x - (obj.width / 2.0) , obj.y + (obj.height / 2.0) );
+                window->draw(sprite);
+                sprite.setPosition( obj.x -  (obj.width / 2.0) - obj.width, obj.y - (obj.height / 2.0) );
+                window->draw(sprite);
+            }
+            else if ( timer.getElapsedTime().asSeconds() > 2.0f )
+            {
+                if ( homo_valid )
+                {
+                    std::vector< cv::Point2f> marker_points,camera_points,proj;
+                    marker_points.push_back ( cv::Point2f(actual_q.pos.x, actual_q.pos.y) );
+                    perspectiveTransform( marker_points, camera_points, homography);
+
+                    cv::Point3f pointcloud = backproject_pixel_to_3D(camera_points[0], homo_depth);
+                    std::vector< cv::Point3f> pclp;
+                    pclp.push_back(pointcloud);
+                    projectPoints(pclp, rot, trans, intrinsic, dist, proj);
+
+                    sf::Vector2f mount(proj[0].x,proj[0].y);
+                    last_mount = mount;
+
+                    if ( abs( mount.x - obj.x ) < 100 && abs( mount.y - obj.y) < 100 )
+                        game_state = s_answered;
+                    else
+                        game_state = s_not_answered;
+                }
+                else
+                {
+                    window->clear();
+                    window->draw(quiz_map);
+                    quiz_text.setString(L"Nemohu najít fyzickou mapu :(");
+                    quiz_text.setColor( sf::Color::Red );
+                    window->draw(quiz_text);
+                }
+            }
+
+            last_obj_x = obj.x;
+            last_obj_y = obj.y;
+        }
+
+        if ( !objects.empty() )
+        {
+            if ( last_icon_id == 5)
+            {
+                game_state = s_init;
+            }
+        }
 
 
         break;
+
+    case s_answered:
+    {
+        window->draw(quiz_map);
+        quiz_text.setString(L"Správně!!!");
+        quiz_text.setColor(sf::Color::Green);
+        window->draw(quiz_text);
+        if ( timeout_tick == false )
+        {
+            sound.setBuffer(succ);
+            sound.play();
+            timeout_tick = true;
+            timeout.restart();
+        }
+        else if ( timeout.getElapsedTime().asSeconds() > 2 )
+        {
+            timeout_tick = false;
+            game_state = s_quiz;
+        }
+
+
+        if ( !objects.empty() )
+        {
+            if ( last_icon_id == 5)
+            {
+                game_state = s_init;
+            }
+        }
+        break;
+    }
+
+    case s_not_answered:
+    {
+        window->draw(quiz_map);
+        quiz_text.setString(L"Špatně!!!");
+        quiz_text.setColor(sf::Color::Red);
+        window->draw(quiz_text);
+
+        sf::CircleShape c( 50 );
+        c.setOrigin(0,0);
+        c.setPosition( last_mount.x, last_mount.y );
+        c.setFillColor(sf::Color::Green);
+        window->draw( c );
+
+        if ( timeout_tick == false )
+        {
+            sound.setBuffer(fail);
+            sound.play();
+            timeout_tick = true;
+            timeout.restart();
+        }
+        else if ( timeout.getElapsedTime().asSeconds() > 2 )
+        {
+            timeout_tick = false;
+            game_state = s_quiz;
+        }
+
+        if ( !objects.empty() )
+        {
+            if ( last_icon_id == 5)
+            {
+                game_state = s_init;
+            }
+        }
+
+        break;
+    }
 
 
     case s_prague_movie:
@@ -364,7 +625,7 @@ void itable_demo::game()
         window->draw(movie_prague);
         if ( !objects.empty() )
         {
-            if ( last_icon_id == 2)
+            if ( last_icon_id == 5)
             {
                 movie_prague.pause();
                 game_state = s_init;
@@ -377,7 +638,7 @@ void itable_demo::game()
         window->draw(text_prague);
         if ( !objects.empty() )
         {
-            if ( last_icon_id == 2 )
+            if ( last_icon_id == 5 )
             {
                 game_state = s_init;
             }
@@ -456,6 +717,7 @@ bool Trigger::update( object obj )
         {
             //draw_object(obj);
             sprite->setScale(   (obj.width ) / sprite->getLocalBounds().width,   (obj.height) / sprite->getLocalBounds().height );
+            sprite->setRotation(obj.angle);
             if ( timer.getElapsedTime().asSeconds() < 0.5f )
             {
                 sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) - obj.height);
@@ -533,6 +795,39 @@ bool Trigger::update( object obj )
     return false;
 }
 
+cv::Point3f itable_demo::backproject_pixel_to_3D( cv:: Point2f cam_2D, float depth)
+{
+    if ( !cam_info_set )
+        return cv::Point3f();
+
+    float fx     = 1.f / cam_intrinsic.at<double>(0,0);
+    float fy     = 1.f / cam_intrinsic.at<double>(1,1);
+    float cx     = cam_intrinsic.at<double>(0,2);
+    float cy     = cam_intrinsic.at<double>(1,2);
+    float factor = 1.f/1000.f;
+
+    float dist = depth * factor;
+    float X    = (cam_2D.x - cx) * dist * fx;
+    float Y    = (cam_2D.y - cy) * dist * fy;
+
+    return cv::Point3f(X,Y,dist);
+}
+
+void itable_demo::caminfo_callback(const sensor_msgs::CameraInfo& msg_camerainfo)
+{
+    if ( cam_info_set )
+        return;
+
+    cam_intrinsic = cv::Mat(3,3,CV_64F,cvScalar(0.));
+    double *ptrI = cam_intrinsic.ptr<double>(0, 0);
+
+    for ( int i = 0; i < 9 ; i++, ptrI++)
+        *ptrI = msg_camerainfo.K[i];
+
+    cam_info_set = true;
+    ROS_INFO("Camera intrinsic and dist_coeffs loaded from CameraInfo");
+}
+
 } // namespace
 
 int main(int argc, char** argv)
@@ -541,7 +836,7 @@ int main(int argc, char** argv)
     itable::itable_demo demo;
 
     demo.ros_init();
-    demo.create_window("Game window",false);
+    demo.create_window("Game window",true);
     //demo.window = new sf::RenderWindow(sf::VideoMode(960,540),"temp",sf::Style::Resize);
     demo.load_data();
 

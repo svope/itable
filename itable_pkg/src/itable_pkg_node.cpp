@@ -240,7 +240,7 @@ namespace itable
 
 #endif
 
-        if ( calculate_object )
+        if ( calculate_object && object_box_loaded)
         {
             find_object_in_pointcloud(after_passthrough,cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image);
         }
@@ -608,9 +608,9 @@ namespace itable
         {
             ROS_ERROR("Error opening file %s. Published calibration data will be invalid", (package_dir_path + std::string("calibration_data.yaml")).c_str() );
             proj_cam_mat = cv::Mat(3,3, CV_64F, cvScalar(0.));
-            dist_coeffs  = cv::Mat(1,5, CV_64F, cvScalar(0.));
-            rot_vec      = cv::Mat(3,3, CV_64F, cvScalar(0.));
-            trans_vec    = cv::Mat(3,3, CV_64F, cvScalar(0.));
+            dist_coeffs  = cv::Mat(5,1, CV_64F, cvScalar(0.));
+            rot_vec      = cv::Mat(3,1, CV_64F, cvScalar(0.));
+            trans_vec    = cv::Mat(3,1, CV_64F, cvScalar(0.));
         }
         else // file opened
         {
@@ -633,13 +633,13 @@ namespace itable
         }
 
         ptr = rot_vec.ptr<double>(0, 0);
-        for(int i = 0; i < 9; i++, ptr++)
+        for(int i = 0; i < 3; i++, ptr++)
         {
             proj_cam_msg.rotation[i] = *ptr;
         }
 
         ptr = trans_vec.ptr<double>(0, 0);
-        for(int i = 0; i < 9; i++, ptr++)
+        for(int i = 0; i < 3; i++, ptr++)
         {
             proj_cam_msg.translation[i] = *ptr;
         }
@@ -659,6 +659,18 @@ namespace itable
             }
             else
                 marker_loaded = true;
+
+        }
+
+        if ( calculate_object )
+        {
+            if (pcl::io::loadPCDFile<pcl::PointXYZ> (package_dir_path + "box.pcd", *cloud_box) == -1) //* load the file
+            {
+                ROS_ERROR ("Couldn't read file box.pcd in %s. Published box data will be invalid.",package_dir_path.c_str());
+                object_box_loaded = false;
+            }
+            else
+                object_box_loaded = true;
         }
 
         ROS_INFO("Data from files loaded successfully");
