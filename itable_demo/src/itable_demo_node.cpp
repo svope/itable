@@ -10,7 +10,7 @@ itable_demo::itable_demo()
 
     prague_trigger.setPosition(380,350);
     sf::Texture* prague_icon = new sf::Texture();
-    if (!prague_icon->loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/maps/prague_icon.png"))
+    if (!prague_icon->loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/maps/prague_icon.png"))
     {
         ROS_ERROR("Cannot load image file ");
     }
@@ -21,18 +21,18 @@ itable_demo::itable_demo()
     brno_trigger.setPosition( 780,730);
 
     sf::Texture* brno_icon = new sf::Texture();
-    if (!brno_icon->loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/maps/brno_icon.png"))
+    if (!brno_icon->loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/maps/brno_icon.png"))
     {
         ROS_ERROR("Cannot load image file ");
     }
     brno_icon->setSmooth(true);
     brno_trigger.setTexture(*brno_icon);
 
-    trig_prague = new Trigger(&window, "/home/petr/catkin_ws/src/itable_demo/data/square.png", &prague_trigger );
-    trig_brno   = new Trigger(&window, "/home/petr/catkin_ws/src/itable_demo/data/square.png", &brno_trigger );
+    trig_prague = new Trigger(&window, "/home/artable/svoboda_ws/src/itable_demo/data/square.png", &prague_trigger );
+    trig_brno   = new Trigger(&window, "/home/artable/svoboda_ws/src/itable_demo/data/square.png", &brno_trigger );
 
     // movies load and positioning
-    if (!movie_prague.openFromFile("/home/petr/catkin_ws/src/itable_demo/data/prague.mp4"))
+    if (!movie_prague.openFromFile("/home/artable/svoboda_ws/src/itable_demo/data/prague.mp4"))
         {
             std::cout <<"neporadilo se nahrat video praha" << std::endl;
         }
@@ -41,14 +41,14 @@ itable_demo::itable_demo()
     float pos_y = win_height - 1080 * tmp;
     movie_prague.fit(0, pos_y / 2.0, win_width, 1080 * tmp);
 
-    if (!movie_brno.openFromFile("/home/petr/catkin_ws/src/itable_demo/data/brno.mp4"))
+    if (!movie_brno.openFromFile("/home/artable/svoboda_ws/src/itable_demo/data/brno.mp4"))
     {
-        std::cout <<"neporadilo se nahrat video brno" << std::endl;
+        std::cout <<"neporadilo se nahrat video brno.mp4" << std::endl;
     }
     movie_brno.fit(0, pos_y / 2.0, win_width, 1080 * tmp);
 
     // Font etc
-    if (!font.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/arial.ttf"))
+    if (!font.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/arial.ttf"))
     {
         ROS_ERROR("Could not load font");
     }
@@ -73,12 +73,12 @@ itable_demo::itable_demo()
 
 
     // create quiz
-    questions.push_back( question(L"Krušné hory", sf::Vector2f(577,302)) );
-    questions.push_back( question(L"Černý les", sf::Vector2f(400,885)) );
-    questions.push_back( question(L"Šumava", sf::Vector2f(719,1174)) );
-    questions.push_back( question(L"Krkonoše", sf::Vector2f(1457,220)) );
-    questions.push_back( question(L"Orlické hory", sf::Vector2f(1700,440)) );
-    questions.push_back( question(L"Moravskoslezské Beskydy", sf::Vector2f(2400,900)) );
+    questions.push_back( question(L"Krušné hory", sf::Vector2f(126,117)) );
+    questions.push_back( question(L"Černý les", sf::Vector2f(84,285)) );
+    questions.push_back( question(L"Šumava", sf::Vector2f(150,375)) );
+    questions.push_back( question(L"Krkonoše", sf::Vector2f(453,80)) );
+    questions.push_back( question(L"Orlické hory", sf::Vector2f(564,162)) );
+    questions.push_back( question(L"Moravskoslezské Beskydy", sf::Vector2f(765,400)) );
 
 
 
@@ -93,6 +93,7 @@ void itable_demo::ros_init()
     icon_sub    = node_handle.subscribe("/ar_pose_marker", 1, &itable_demo::icon_callback,this);
     projector_camera_sub = node_handle.subscribe("/projector_camera_data",1,&itable_demo::proj_cam_callback,this);
     camerainfo_sub.subscribe(node_handle, "/kinect2/qhd/camera_info",1);
+    camerainfo_sub.registerCallback(&itable_demo::caminfo_callback, this);
 
 }
 
@@ -143,8 +144,8 @@ void itable_demo::icon_callback(const ar_track_alvar_msgs::AlvarMarkers::ConstPt
             last_icon_id = it->id;
         }
 
-        if ( icon->markers.empty() )
-            last_icon_id = -1;
+        //if ( icon->markers.empty() )
+        //    last_icon_id = -1;
     }
 
 
@@ -167,12 +168,12 @@ void itable_demo::mask_callback(const itable_pkg::mask& msg)
         cs.setFillColor(sf::Color::Black);
         masks[i] = cs;
     }
-    ROS_INFO("Mask recalculated");
+    //ROS_INFO("Mask recalculated");
 }
 
 void itable_demo::marker_callback(const itable_pkg::marker_location& msg)
 {
-    ROS_INFO ( "marker callback ");
+    //ROS_INFO ( "marker callback ");
     if ( msg.valid )
     {
         float* ptrH = homography.ptr<float>(0,0);
@@ -180,7 +181,7 @@ void itable_demo::marker_callback(const itable_pkg::marker_location& msg)
         {
             *ptrH = msg.homography[i];
         }
-        homo_depth = true;
+        homo_depth = msg.depth;
         homo_valid = true;
     }
 
@@ -205,9 +206,9 @@ void itable_demo::object_callback(const itable_pkg::objects& msg)
         obj.height    = msg.objects[i].height;
         obj.angle     = msg.objects[i].angle;
 
-        std::cout << obj.x << " " << obj.y << std::endl;
+        //std::cout << obj.x << " " << obj.y << std::endl;
 
-        if ( abs(temp.x - obj.x) > 30 && abs(temp.y - obj.y) > 30 )
+        if ( abs(temp.x - obj.x) > 100 && abs(temp.y - obj.y) > 100 )
         {
             std::cout << "change a lot" << std::endl;
             if ( changed_alot )
@@ -225,7 +226,7 @@ void itable_demo::object_callback(const itable_pkg::objects& msg)
             objects[i] = obj;
     }
 
-    ROS_INFO("Objects data updated");
+    //ROS_INFO("Objects data updated");
 }
 
 void itable_demo::create_window(std::string window_name, bool fullscreen )
@@ -240,9 +241,9 @@ void itable_demo::create_window(std::string window_name, bool fullscreen )
 
 void itable_demo::load_data()
 {
-    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/maps/brno.png");
-    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/maps/praha.jpg");
-    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/maps/map_CR.png");
+    img_files.push_back("/home/artable/svoboda_ws/src/itable_demo/data/maps/brno.png");
+    img_files.push_back("/home/artable/svoboda_ws/src/itable_demo/data/maps/praha.jpg");
+    img_files.push_back("/home/artable/svoboda_ws/src/itable_demo/data/maps/map_CR.png");
 
     for ( std::vector< std::string >::iterator it = img_files.begin(); it != img_files.end(); it++)
     {
@@ -274,7 +275,7 @@ void itable_demo::load_data()
 
 
     // quiz
-    if (!CR_mount.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/maps/CR_hory.png"))
+    if (!CR_mount.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/maps/CR_hory.png"))
     {
         ROS_ERROR("Cannot load image file CR_hory");
     }
@@ -287,8 +288,15 @@ void itable_demo::load_data()
     quiz_text.setCharacterSize(90); // in pixels, not points!
     quiz_text.setColor(sf::Color::White);
 
+    if (!panorama_tex.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/maps/panorama.jpg"))
+    {
+        ROS_ERROR("Cannot load image panorama.jpg");
+    }
+    panorama_tex.setSmooth(true);
+    panorama.setTexture(panorama_tex);
+    panorama.setPosition(0,0);
 
-    if ( !sprite_texture.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/square.png") )
+    if ( !sprite_texture.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/square.png") )
     {
         ROS_ERROR("Cannot load sprite" );
     }
@@ -296,12 +304,12 @@ void itable_demo::load_data()
     sprite.setTexture(sprite_texture);
 
     // sounds
-    if (!succ.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/success.wav"))
+    if (!succ.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/success.wav"))
     {
         ROS_ERROR("Cannot open success.wav file");
     }
 
-    if (!fail.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/fail.wav"))
+    if (!fail.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/fail.wav"))
     {
         ROS_ERROR("Cannot open fail.wav file");
     }
@@ -386,32 +394,35 @@ void itable_demo::game()
         window->draw( *(trig_brno->draw()));
 
 
-        if ( !objects.empty() && last_icon_id != 5 ) // 5 ~ back
+        if ( !objects.empty() && last_icon_id != 2 ) // 2 ~ back
         {
             if ( trig_prague->update( objects[0]) )
             {
-                //std::string next_state = trig_prague->getIcon();
+                ROS_ERROR("TRUE");
+                std::cout<< "LAST ICON ID <<<< " << last_icon_id << " <<< "<<std::endl;
                 if ( last_icon_id == 1 )
                     game_state = s_prague_hist;
                 else if (last_icon_id == 0)
                     game_state = s_prague_movie;
-                else
-                    game_state = s_prague_hist;
             }
             else if ( trig_brno->update( objects[0]) )
             {
-                //std::string next_state = trig_brno->getIcon();
+                ROS_ERROR("TRUEBB");
+                std::cout<< "LAST ICON ID <<<< " << last_icon_id << " <<< "<<std::endl;
                 if ( last_icon_id == 1)
                     game_state = s_brno_hist;
                 else if (last_icon_id == 0)
                     game_state = s_brno_movie;
-                else
-                    game_state = s_brno_movie;
             }
-            //else
-            //    last_icon_id = -1;
-        }
 
+        }
+        if ( !objects.empty() )
+        {
+            if ( last_icon_id == 5)
+            {
+                game_state = s_quiz;
+            }
+        }
         break;
 
     case s_quiz:
@@ -429,15 +440,34 @@ void itable_demo::game()
     }
 
     case s_asked:
-        window->draw(quiz_map);
+    {
+        //window->draw(quiz_map);
+        quiz_text.setColor(sf::Color::White);
         quiz_text.setPosition(0,0);
         quiz_text.setString(actual_q.mount);
         window->draw(quiz_text);
+
+        paper_map.setPointCount(4);
+        cv::Point2f left_up_corner = bitmap_to_projector(0,0);
+        cv::Point2f right_up_corner = bitmap_to_projector(860,0);
+        cv::Point2f left_bot_corner = bitmap_to_projector(0,495);
+        cv::Point2f right_bot_corner = bitmap_to_projector(860,495);
+        //paper_map.setPosition(left_up_corner.x,left_up_corner.y);
+        //paper_map.setSize( sf::Vector2f(abs(left_up_corner.x - right_up_corner.x), abs(left_up_corner.y - left_bot_corner.y) ) );
+
+        window->draw(panorama);
+        paper_map.setPoint(0, sf::Vector2f(left_up_corner.x, left_up_corner.y));
+        paper_map.setPoint(1, sf::Vector2f(right_up_corner.x, right_up_corner.y));
+        paper_map.setPoint(2, sf::Vector2f(right_bot_corner.x, right_bot_corner.y));
+        paper_map.setPoint(3, sf::Vector2f(left_bot_corner.x, left_bot_corner.y));
+        paper_map.setFillColor( sf::Color::Black);
+        window->draw(paper_map);
 
         if ( safe_time_done == false)
         {
             safe_time.restart();
             safe_time_done = true;
+            ticking = false;
         }
         else
         {
@@ -445,28 +475,32 @@ void itable_demo::game()
                 break;
         }
 
-        if ( ticking == false )
+        object obj;
+        if (objects.empty())
         {
-            timer.restart();
-            ticking = true;
+            ticking = false;
+            break;
         }
         else
+            obj = objects[0];
+
+        sf::FloatRect bbox = paper_map.getGlobalBounds();
+        if ( bbox.contains( sf::Vector2f( obj.x, obj.y) ) )
         {
-            object obj;
-            if (objects.empty())
+            if ( ticking == false )
             {
-                ticking = false;
-                break;
+                timer.restart();
+                ticking = true;
             }
             else
-                obj = objects[0];
-
-            if ( abs(obj.x - last_obj_x) > 20 || abs( obj.y - last_obj_y) > 20 )
             {
-                ticking = false;
-                last_obj_x = obj.x;
-                last_obj_y = obj.y;
-                break;
+                if ( abs(obj.x - last_obj_x) > 20 || abs( obj.y - last_obj_y) > 20 )
+                {
+                    ticking = false;
+                    last_obj_x = obj.x;
+                    last_obj_y = obj.y;
+                    break;
+                }
             }
 
             sprite.setScale(   (obj.width ) / sprite.getLocalBounds().width,   (obj.height) / sprite.getLocalBounds().height );
@@ -505,24 +539,21 @@ void itable_demo::game()
             }
             else if ( timer.getElapsedTime().asSeconds() > 2.0f )
             {
+                timeout_tick = false;
                 if ( homo_valid )
                 {
-                    std::vector< cv::Point2f> marker_points,camera_points,proj;
-                    marker_points.push_back ( cv::Point2f(actual_q.pos.x, actual_q.pos.y) );
-                    perspectiveTransform( marker_points, camera_points, homography);
+                    cv::Point2f projector_space = bitmap_to_projector(actual_q.pos.x, actual_q.pos.y);
 
-                    cv::Point3f pointcloud = backproject_pixel_to_3D(camera_points[0], homo_depth);
-                    std::vector< cv::Point3f> pclp;
-                    pclp.push_back(pointcloud);
-                    projectPoints(pclp, rot, trans, intrinsic, dist, proj);
-
-                    sf::Vector2f mount(proj[0].x,proj[0].y);
+                    sf::Vector2f mount(projector_space.x,projector_space.y);
                     last_mount = mount;
 
                     if ( abs( mount.x - obj.x ) < 100 && abs( mount.y - obj.y) < 100 )
                         game_state = s_answered;
                     else
                         game_state = s_not_answered;
+
+                    safe_time_done = false;
+                    break;
                 }
                 else
                 {
@@ -531,29 +562,38 @@ void itable_demo::game()
                     quiz_text.setString(L"Nemohu najít fyzickou mapu :(");
                     quiz_text.setColor( sf::Color::Red );
                     window->draw(quiz_text);
+                    safe_time_done = false;
                 }
             }
-
-            last_obj_x = obj.x;
-            last_obj_y = obj.y;
         }
+        else
+        {
+            ticking = false;
+        }
+
+
+        last_obj_x = obj.x;
+        last_obj_y = obj.y;
 
         if ( !objects.empty() )
         {
-            if ( last_icon_id == 5)
+            if ( last_icon_id == 2)
             {
                 game_state = s_init;
             }
         }
-
-
+    }
         break;
 
     case s_answered:
     {
-        window->draw(quiz_map);
+        ROS_ERROR("TRUE");
+        //window->draw(quiz_map);
+        quiz_text.setColor(sf::Color(255,128,0));
         quiz_text.setString(L"Správně!!!");
-        quiz_text.setColor(sf::Color::Green);
+
+        window->draw(panorama);
+        window->draw(paper_map);
         window->draw(quiz_text);
         if ( timeout_tick == false )
         {
@@ -571,24 +611,27 @@ void itable_demo::game()
 
         if ( !objects.empty() )
         {
-            if ( last_icon_id == 5)
+            if ( last_icon_id == 2)
             {
                 game_state = s_init;
             }
         }
-        break;
     }
+        break;
 
     case s_not_answered:
     {
-        window->draw(quiz_map);
-        quiz_text.setString(L"Špatně!!!");
+        //window->draw(quiz_map);
         quiz_text.setColor(sf::Color::Red);
+        quiz_text.setString(L"Špatně!!!");
         window->draw(quiz_text);
+        window->draw(panorama);
+        window->draw(paper_map);
 
-        sf::CircleShape c( 50 );
+        sf::CircleShape c( 70 );
         c.setOrigin(0,0);
         c.setPosition( last_mount.x, last_mount.y );
+        //std::cout << last_mount.x << " " << last_mount.y << std::endl;
         c.setFillColor(sf::Color::Green);
         window->draw( c );
 
@@ -607,15 +650,13 @@ void itable_demo::game()
 
         if ( !objects.empty() )
         {
-            if ( last_icon_id == 5)
+            if ( last_icon_id == 2)
             {
                 game_state = s_init;
             }
         }
-
-        break;
     }
-
+        break;
 
     case s_prague_movie:
 
@@ -625,7 +666,7 @@ void itable_demo::game()
         window->draw(movie_prague);
         if ( !objects.empty() )
         {
-            if ( last_icon_id == 5)
+            if ( last_icon_id == 2)
             {
                 movie_prague.pause();
                 game_state = s_init;
@@ -638,7 +679,7 @@ void itable_demo::game()
         window->draw(text_prague);
         if ( !objects.empty() )
         {
-            if ( last_icon_id == 5 )
+            if ( last_icon_id == 2 )
             {
                 game_state = s_init;
             }
@@ -708,13 +749,10 @@ bool Trigger::update( object obj )
         {
             timer.restart();
             ticking = true;
-            for ( int &i : icon_count)
-            {
-                icon_count[i] = 0;
-            }
         }
         else
         {
+            //std::cout << obj.width << "   " << obj.height << std::endl;
             //draw_object(obj);
             sprite->setScale(   (obj.width ) / sprite->getLocalBounds().width,   (obj.height) / sprite->getLocalBounds().height );
             sprite->setRotation(obj.angle);
@@ -736,7 +774,7 @@ bool Trigger::update( object obj )
                 (*window)->draw(*sprite);
                 sprite->setPosition( obj.x +  (obj.width / 2.0), obj.y - (obj.height / 2.0) );
                 (*window)->draw(*sprite);
-                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y + (obj.height / 2.0)  );
+                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y + (obj.height / 2.0) );
                 (*window)->draw(*sprite);
             }
             else if ( timer.getElapsedTime().asSeconds() < 2.0f )
@@ -752,36 +790,6 @@ bool Trigger::update( object obj )
             }
             else if ( timer.getElapsedTime().asSeconds() > 2.0f )
             {
-                int max = 0,max_index = 4;
-                for ( int &i : icon_count)
-                {
-                    if ( icon_count[i] > max )
-                    {
-                        max = icon_count[i];
-                        max_index = i;
-                    }
-                }
-
-                switch ( max_index )
-                {
-                case 0:
-                    icon_name = "history";
-                    break;
-                case 1:
-                    icon_name = "city";
-                    break;
-                case 2:
-                    icon_name = "movie";
-                    break;
-                case 3:
-                    icon_name = "cross";
-                    break;
-                case 4:
-                    icon_name = "";
-                    break;
-                default:break;
-                }
-
                 ticking = false;
                 return true;
             }
@@ -811,6 +819,28 @@ cv::Point3f itable_demo::backproject_pixel_to_3D( cv:: Point2f cam_2D, float dep
     float Y    = (cam_2D.y - cy) * dist * fy;
 
     return cv::Point3f(X,Y,dist);
+}
+
+cv::Point2f itable_demo::bitmap_to_projector( int x, int y)
+{
+    if ( (cam_info_set && proj_cam_set && homo_valid) == false )
+        return cv::Point2f();
+
+    std::vector< cv::Point2f> bitmap_points,camera_points,projector_points;
+
+    bitmap_points.push_back ( cv::Point2f( x, y) );
+    // from bitmap to camera space (RGB)
+    perspectiveTransform( bitmap_points, camera_points, homography);
+
+    // from camera space (RGB) to pointcloud point
+    cv::Point3f pointcloud = backproject_pixel_to_3D(camera_points[0], homo_depth);
+
+    std::vector< cv::Point3f> pclp;
+    pclp.push_back(pointcloud);
+    // from pointcloud to projector space
+    projectPoints(pclp, rot, trans, intrinsic, dist, projector_points);
+
+    return projector_points[0];
 }
 
 void itable_demo::caminfo_callback(const sensor_msgs::CameraInfo& msg_camerainfo)

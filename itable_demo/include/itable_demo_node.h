@@ -122,6 +122,8 @@ private:
     void proj_cam_callback(const itable_pkg::proj_cam_data& msg);
     void caminfo_callback(const sensor_msgs::CameraInfo& msg_camerainfo);
     cv::Point3f backproject_pixel_to_3D( cv:: Point2f cam_2D, float depth);
+    cv::Point2f bitmap_to_projector( int x, int y);
+
     // SFML
     sf::RenderWindow* window;
 
@@ -153,7 +155,7 @@ public:
 
     // game states
     enum game_states { s_init, s_prague, s_brno_hist, s_brno_movie, s_prague_hist, s_prague_movie , s_quiz, s_asked,s_answered,s_not_answered};
-    game_states game_state { s_quiz };
+    game_states game_state { s_init };
     bool demo_running { true };
 
     // Images to load
@@ -182,6 +184,9 @@ public:
     sf::Text text_prague;
 
     // Quiz
+    sf::ConvexShape paper_map;
+    sf::Texture panorama_tex;
+    sf::Sprite panorama;
     sf::Texture CR_mount;
     sf::Sprite quiz_map;
     sf::Text quiz_text;

@@ -114,7 +114,7 @@ namespace itable
 
 #ifdef IMG_CALLBACK
             cv::Point2f uno,dos,tres;
-            uno = cv::Point2f(273,227);
+            uno = cv::Point2f(860,0);
 
             std::vector<cv::Point2f> marker_points,camera_points;
 

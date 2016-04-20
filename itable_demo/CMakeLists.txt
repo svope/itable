@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(itable_demo)
 
+
+
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -19,14 +22,15 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
 )
 
- 
- catkin_package(
-  INCLUDE_DIRS include
-  LIBRARIES itable_pkg
-  CATKIN_DEPENDS message_runtime roscpp std_msgs
-  DEPENDS system_lib
-)
 
+ 
+ 
+catkin_package(
+  INCLUDE_DIRS include
+  LIBRARIES ${PROJECT_NAME}
+  #CATKIN_DEPENDS message_runtime roscpp std_msgs
+  #DEPENDS system_lib
+)
  
 include_directories(include)
 include_directories(
@@ -35,13 +39,14 @@ include_directories(
 
 ## Declare a C++ executable
 add_executable(itable_demo_node src/itable_demo_node.cpp)
-
+add_dependencies(itable_demo_node itable_pkg_generate_messages_cpp)
 ## Add cmake target dependencies of the executable
 ## same as for the library above
- add_dependencies(itable_demo_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS}
- 					itable_pkg_)
+# add_dependencies(itable_demo_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS}
+# 					itable_pkg_)
 
 ## Specify libraries to link a library or executable target against
+
  target_link_libraries(itable_demo_node
   ${OpenCV_LIBS} ${catkin_LIBRARIES} ${SFML_LIBRARIES} -lsfeMovie
  )
