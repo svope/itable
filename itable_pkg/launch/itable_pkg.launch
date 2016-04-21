@@ -5,7 +5,7 @@
   
   <!-- Marker -->
   <!-- should be marker position + homography matrix calculated? -->
-  <arg name="calculate_marker" 	default="true"/>
+  <arg name="calculate_marker" 	default="false"/>
   <!-- Path to marker image file -->
   <arg name="marker_path" 		default="$(find itable_pkg)/data/marker.png"/>
   <!-- after how many seconds should be marker position recalculated -->

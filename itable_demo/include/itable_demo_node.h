@@ -150,7 +150,7 @@ private:
     // Object
 public:
     std::vector< object > objects;
-    int last_icon_id;
+    int last_icon_id { -1 };
     bool changed_alot { false };
 
     // game states

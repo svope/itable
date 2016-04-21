@@ -10,7 +10,7 @@ itable_demo::itable_demo()
 
     prague_trigger.setPosition(380,350);
     sf::Texture* prague_icon = new sf::Texture();
-    if (!prague_icon->loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/maps/prague_icon.png"))
+    if (!prague_icon->loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/maps/prague_icon.png"))
     {
         ROS_ERROR("Cannot load image file ");
     }
@@ -21,18 +21,18 @@ itable_demo::itable_demo()
     brno_trigger.setPosition( 780,730);
 
     sf::Texture* brno_icon = new sf::Texture();
-    if (!brno_icon->loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/maps/brno_icon.png"))
+    if (!brno_icon->loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/maps/brno_icon.png"))
     {
         ROS_ERROR("Cannot load image file ");
     }
     brno_icon->setSmooth(true);
     brno_trigger.setTexture(*brno_icon);
 
-    trig_prague = new Trigger(&window, "/home/artable/svoboda_ws/src/itable_demo/data/square.png", &prague_trigger );
-    trig_brno   = new Trigger(&window, "/home/artable/svoboda_ws/src/itable_demo/data/square.png", &brno_trigger );
+    trig_prague = new Trigger(&window, "/home/petr/catkin_ws/src/itable_demo/data/square.png", &prague_trigger );
+    trig_brno   = new Trigger(&window, "/home/petr/catkin_ws/src/itable_demo/data/square.png", &brno_trigger );
 
     // movies load and positioning
-    if (!movie_prague.openFromFile("/home/artable/svoboda_ws/src/itable_demo/data/prague.mp4"))
+    if (!movie_prague.openFromFile("/home/petr/catkin_ws/src/itable_demo/data/prague.mp4"))
         {
             std::cout <<"neporadilo se nahrat video praha" << std::endl;
         }
@@ -41,14 +41,14 @@ itable_demo::itable_demo()
     float pos_y = win_height - 1080 * tmp;
     movie_prague.fit(0, pos_y / 2.0, win_width, 1080 * tmp);
 
-    if (!movie_brno.openFromFile("/home/artable/svoboda_ws/src/itable_demo/data/brno.mp4"))
+    if (!movie_brno.openFromFile("/home/petr/catkin_ws/src/itable_demo/data/brno.mp4"))
     {
         std::cout <<"neporadilo se nahrat video brno.mp4" << std::endl;
     }
     movie_brno.fit(0, pos_y / 2.0, win_width, 1080 * tmp);
 
     // Font etc
-    if (!font.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/arial.ttf"))
+    if (!font.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/arial.ttf"))
     {
         ROS_ERROR("Could not load font");
     }
@@ -73,12 +73,11 @@ itable_demo::itable_demo()
 
 
     // create quiz
-    questions.push_back( question(L"Krušné hory", sf::Vector2f(126,117)) );
-    questions.push_back( question(L"Černý les", sf::Vector2f(84,285)) );
-    questions.push_back( question(L"Šumava", sf::Vector2f(150,375)) );
-    questions.push_back( question(L"Krkonoše", sf::Vector2f(453,80)) );
-    questions.push_back( question(L"Orlické hory", sf::Vector2f(564,162)) );
-    questions.push_back( question(L"Moravskoslezské Beskydy", sf::Vector2f(765,400)) );
+    questions.push_back( question(L"Krušné hory", sf::Vector2f(160,138)) );
+    questions.push_back( question(L"Šumava", sf::Vector2f(230,390)) );
+    questions.push_back( question(L"Krkonoše", sf::Vector2f(410,86)) );
+    questions.push_back( question(L"Jeseníky", sf::Vector2f(661,195)) );
+    questions.push_back( question(L"Moravskoslezské Beskydy", sf::Vector2f(800,309)) );
 
 
 
@@ -241,9 +240,9 @@ void itable_demo::create_window(std::string window_name, bool fullscreen )
 
 void itable_demo::load_data()
 {
-    img_files.push_back("/home/artable/svoboda_ws/src/itable_demo/data/maps/brno.png");
-    img_files.push_back("/home/artable/svoboda_ws/src/itable_demo/data/maps/praha.jpg");
-    img_files.push_back("/home/artable/svoboda_ws/src/itable_demo/data/maps/map_CR.png");
+    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/maps/brno.png");
+    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/maps/praha.jpg");
+    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/maps/map_CR.png");
 
     for ( std::vector< std::string >::iterator it = img_files.begin(); it != img_files.end(); it++)
     {
@@ -275,7 +274,7 @@ void itable_demo::load_data()
 
 
     // quiz
-    if (!CR_mount.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/maps/CR_hory.png"))
+    if (!CR_mount.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/maps/CR_hory.png"))
     {
         ROS_ERROR("Cannot load image file CR_hory");
     }
@@ -288,7 +287,7 @@ void itable_demo::load_data()
     quiz_text.setCharacterSize(90); // in pixels, not points!
     quiz_text.setColor(sf::Color::White);
 
-    if (!panorama_tex.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/maps/panorama.jpg"))
+    if (!panorama_tex.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/maps/panorama.jpg"))
     {
         ROS_ERROR("Cannot load image panorama.jpg");
     }
@@ -296,7 +295,7 @@ void itable_demo::load_data()
     panorama.setTexture(panorama_tex);
     panorama.setPosition(0,0);
 
-    if ( !sprite_texture.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/square.png") )
+    if ( !sprite_texture.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/square.png") )
     {
         ROS_ERROR("Cannot load sprite" );
     }
@@ -304,12 +303,12 @@ void itable_demo::load_data()
     sprite.setTexture(sprite_texture);
 
     // sounds
-    if (!succ.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/success.wav"))
+    if (!succ.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/success.wav"))
     {
         ROS_ERROR("Cannot open success.wav file");
     }
 
-    if (!fail.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/fail.wav"))
+    if (!fail.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/fail.wav"))
     {
         ROS_ERROR("Cannot open fail.wav file");
     }
@@ -427,11 +426,23 @@ void itable_demo::game()
 
     case s_quiz:
     {
+        sf::CircleShape c( 10 );
+        c.setOrigin(0,0);
+        c.setFillColor(sf::Color::Red);
+        cv::Point2f Krkonose = bitmap_to_projector( 579,379);
+        c.setPosition( Krkonose.x, Krkonose.y);
+        window->draw(c);
+        break;
+
+
         if ( questions.empty() )
             questions = answered_q;
 
         int index = rand() % questions.size();
         actual_q = questions[index];
+
+        questions.erase( questions.begin() + index );
+        answered_q.push_back( actual_q );
 
         game_state = s_asked;
         safe_time_done = false;
@@ -445,7 +456,7 @@ void itable_demo::game()
         quiz_text.setColor(sf::Color::White);
         quiz_text.setPosition(0,0);
         quiz_text.setString(actual_q.mount);
-        window->draw(quiz_text);
+
 
         paper_map.setPointCount(4);
         cv::Point2f left_up_corner = bitmap_to_projector(0,0);
@@ -462,6 +473,7 @@ void itable_demo::game()
         paper_map.setPoint(3, sf::Vector2f(left_bot_corner.x, left_bot_corner.y));
         paper_map.setFillColor( sf::Color::Black);
         window->draw(paper_map);
+        window->draw(quiz_text);
 
         if ( safe_time_done == false)
         {
@@ -504,40 +516,41 @@ void itable_demo::game()
             }
 
             sprite.setScale(   (obj.width ) / sprite.getLocalBounds().width,   (obj.height) / sprite.getLocalBounds().height );
+            sprite.setOrigin ( sprite.getLocalBounds().width / 2.0 , sprite.getLocalBounds().height / 2.0);
             sprite.setRotation(obj.angle);
-            if ( timer.getElapsedTime().asSeconds() < 0.5f )
+            if ( timer.getElapsedTime().asSeconds() < 0.4f )
             {
-                sprite.setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) - obj.height);
-                window->draw(sprite);
+                sprite.setPosition( obj.x  , obj.y - obj.height - obj.height/2.0);
+                (window)->draw(sprite);
             }
-            else if ( timer.getElapsedTime().asSeconds() < 1.0f )
+            else if ( timer.getElapsedTime().asSeconds() < 0.8f )
             {
-                sprite.setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) - obj.height);
-                window->draw(sprite);
-                sprite.setPosition( obj.x +  (obj.width / 2.0), obj.y - (obj.height / 2.0) );
-                window->draw(sprite);
+                sprite.setPosition( obj.x  , obj.y - obj.height - obj.height/2.0);
+                (window)->draw(sprite);
+                sprite.setPosition( obj.x + obj.width + (obj.width / 2.0), obj.y  );
+                (window)->draw(sprite);
             }
-            else if ( timer.getElapsedTime().asSeconds() < 1.5f )
+            else if ( timer.getElapsedTime().asSeconds() < 1.2f )
             {
-                sprite.setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) - obj.height);
-                window->draw(sprite);
-                sprite.setPosition( obj.x +  (obj.width / 2.0), obj.y - (obj.height / 2.0) );
-                window->draw(sprite);
-                sprite.setPosition( obj.x - (obj.width / 2.0) , obj.y + (obj.height / 2.0)  );
-                window->draw(sprite);
+                sprite.setPosition( obj.x  , obj.y - obj.height - obj.height/2.0);
+                (window)->draw(sprite);
+                sprite.setPosition( obj.x + obj.width + (obj.width / 2.0), obj.y  );
+                (window)->draw(sprite);
+                sprite.setPosition( obj.x , obj.y + obj.height + (obj.height / 2.0) );
+                (window)->draw(sprite);
             }
-            else if ( timer.getElapsedTime().asSeconds() < 2.0f )
+            else if ( timer.getElapsedTime().asSeconds() < 1.6f )
             {
-                sprite.setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) - obj.height);
-                window->draw(sprite);
-                sprite.setPosition( obj.x +  (obj.width / 2.0), obj.y - (obj.height / 2.0) );
-                window->draw(sprite);
-                sprite.setPosition( obj.x - (obj.width / 2.0) , obj.y + (obj.height / 2.0) );
-                window->draw(sprite);
-                sprite.setPosition( obj.x -  (obj.width / 2.0) - obj.width, obj.y - (obj.height / 2.0) );
-                window->draw(sprite);
+                sprite.setPosition( obj.x  , obj.y - obj.height - obj.height/2.0);
+                (window)->draw(sprite);
+                sprite.setPosition( obj.x + obj.width + (obj.width / 2.0), obj.y  );
+                (window)->draw(sprite);
+                sprite.setPosition( obj.x , obj.y + obj.height + (obj.height / 2.0) );
+                (window)->draw(sprite);
+                sprite.setPosition( obj.x - obj.width - (obj.width / 2.0) , obj.y );
+                (window)->draw(sprite);
             }
-            else if ( timer.getElapsedTime().asSeconds() > 2.0f )
+            else if ( timer.getElapsedTime().asSeconds() > 1.6f )
             {
                 timeout_tick = false;
                 if ( homo_valid )
@@ -587,9 +600,9 @@ void itable_demo::game()
 
     case s_answered:
     {
-        ROS_ERROR("TRUE");
         //window->draw(quiz_map);
-        quiz_text.setColor(sf::Color(255,128,0));
+        //quiz_text.setColor(sf::Color(255,128,0));
+        quiz_text.setColor(sf::Color::Green);
         quiz_text.setString(L"Správně!!!");
 
         window->draw(panorama);
@@ -624,9 +637,10 @@ void itable_demo::game()
         //window->draw(quiz_map);
         quiz_text.setColor(sf::Color::Red);
         quiz_text.setString(L"Špatně!!!");
-        window->draw(quiz_text);
-        window->draw(panorama);
+
+        //window->draw(panorama);
         window->draw(paper_map);
+        window->draw(quiz_text);
 
         sf::CircleShape c( 70 );
         c.setOrigin(0,0);
@@ -755,40 +769,41 @@ bool Trigger::update( object obj )
             //std::cout << obj.width << "   " << obj.height << std::endl;
             //draw_object(obj);
             sprite->setScale(   (obj.width ) / sprite->getLocalBounds().width,   (obj.height) / sprite->getLocalBounds().height );
+            sprite->setOrigin ( sprite->getLocalBounds().width / 2.0 , sprite->getLocalBounds().height / 2.0);
             sprite->setRotation(obj.angle);
-            if ( timer.getElapsedTime().asSeconds() < 0.5f )
+            if ( timer.getElapsedTime().asSeconds() < 0.4f )
             {
-                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) - obj.height);
+                sprite->setPosition( obj.x  , obj.y - obj.height - obj.height/2.0);
                 (*window)->draw(*sprite);
             }
-            else if ( timer.getElapsedTime().asSeconds() < 1.0f )
+            else if ( timer.getElapsedTime().asSeconds() < 0.8f )
             {
-                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) - obj.height);
+                sprite->setPosition( obj.x  , obj.y - obj.height - obj.height/2.0);
                 (*window)->draw(*sprite);
-                sprite->setPosition( obj.x +  (obj.width / 2.0), obj.y - (obj.height / 2.0) );
+                sprite->setPosition( obj.x + obj.width + (obj.width / 2.0), obj.y  );
                 (*window)->draw(*sprite);
             }
-            else if ( timer.getElapsedTime().asSeconds() < 1.5f )
+            else if ( timer.getElapsedTime().asSeconds() < 1.2f )
             {
-                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) - obj.height);
+                sprite->setPosition( obj.x  , obj.y - obj.height - obj.height/2.0);
                 (*window)->draw(*sprite);
-                sprite->setPosition( obj.x +  (obj.width / 2.0), obj.y - (obj.height / 2.0) );
+                sprite->setPosition( obj.x + obj.width + (obj.width / 2.0), obj.y  );
                 (*window)->draw(*sprite);
-                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y + (obj.height / 2.0) );
+                sprite->setPosition( obj.x , obj.y + obj.height + (obj.height / 2.0) );
                 (*window)->draw(*sprite);
             }
-            else if ( timer.getElapsedTime().asSeconds() < 2.0f )
+            else if ( timer.getElapsedTime().asSeconds() < 1.6f )
             {
-                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y - (obj.height / 2.0) - obj.height);
+                sprite->setPosition( obj.x  , obj.y - obj.height - obj.height/2.0);
                 (*window)->draw(*sprite);
-                sprite->setPosition( obj.x +  (obj.width / 2.0), obj.y - (obj.height / 2.0) );
+                sprite->setPosition( obj.x + obj.width + (obj.width / 2.0), obj.y  );
                 (*window)->draw(*sprite);
-                sprite->setPosition( obj.x - (obj.width / 2.0) , obj.y + (obj.height / 2.0) );
+                sprite->setPosition( obj.x , obj.y + obj.height + (obj.height / 2.0) );
                 (*window)->draw(*sprite);
-                sprite->setPosition( obj.x -  (obj.width / 2.0) - obj.width, obj.y - (obj.height / 2.0) );
+                sprite->setPosition( obj.x - obj.width - (obj.width / 2.0) , obj.y );
                 (*window)->draw(*sprite);
             }
-            else if ( timer.getElapsedTime().asSeconds() > 2.0f )
+            else if ( timer.getElapsedTime().asSeconds() > 1.6f )
             {
                 ticking = false;
                 return true;
@@ -814,7 +829,7 @@ cv::Point3f itable_demo::backproject_pixel_to_3D( cv:: Point2f cam_2D, float dep
     float cy     = cam_intrinsic.at<double>(1,2);
     float factor = 1.f/1000.f;
 
-    float dist = depth * factor;
+    float dist = (depth ) * factor;
     float X    = (cam_2D.x - cx) * dist * fx;
     float Y    = (cam_2D.y - cy) * dist * fy;
 

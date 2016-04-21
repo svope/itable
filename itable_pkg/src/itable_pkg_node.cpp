@@ -4,6 +4,7 @@
 //#define IMG_CALLBACK
 //#define POINTCLOUD_CALLBACK
 //#define POINTCLOUD_CALLBACK1
+#define OBJECT_CALLBACK
 
 namespace itable
 {
@@ -114,7 +115,7 @@ namespace itable
 
 #ifdef IMG_CALLBACK
             cv::Point2f uno,dos,tres;
-            uno = cv::Point2f(860,0);
+            uno = cv::Point2f(230,390);
 
             std::vector<cv::Point2f> marker_points,camera_points;
 
@@ -211,7 +212,7 @@ namespace itable
         }
 
 
-#ifdef POINTCLOUD_CALLBACK1
+#ifdef POINTCLOUD_CALLBACK2
         cv::Mat proj = cv::Mat(800,1280, CV_8U, cvScalar(0.));
         for ( int i =0;i < mask_points.size() ; i++)
             proj.at<uchar>( mask_points[i].y,mask_points[i].x) = 255;
@@ -301,7 +302,8 @@ namespace itable
         ec.extract (cluster_indices);
 
         pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-        icp.setMaximumIterations (300);
+        icp.setMaximumIterations (400);
+        //icp.setUseReciprocalCorrespondences(true);
         // Set the max correspondence distance to 5cm (e.g., correspondences with higher distances will be ignored)
         icp.setMaxCorrespondenceDistance ( max_corr_dist );
         icp.setInputTarget (cloud_box);
@@ -353,13 +355,30 @@ namespace itable
 
         std::vector<cv::Point2f> boxx;
 
+/*
+        std::vector< float > depths;
+        std::vector < cv::Point3f> reloaded;
+*/
         // Pointcloud of object
         for( int i =0; i < cloud_lowest_score->size(); i++)
         {
             points.push_back(cv::Point3f((*cloud_lowest_score)[i].x,(*cloud_lowest_score)[i].y,(*cloud_lowest_score)[i].z));
             boxx.push_back( project3D_to_pixel(cv::Point3f((*cloud_lowest_score)[i].x,(*cloud_lowest_score)[i].y,(*cloud_lowest_score)[i].z)) );
+           // depths.push_back( (*cloud_lowest_score)[i].z );
+        }
+/*
+        for ( int i = 0; i < boxx.size() ; i++ )
+        {
+            reloaded.push_back ( backproject_pixel_to_3D( boxx[i], depths[i] * 1000.0 ) );
         }
 
+        for ( int i = 0; i < reloaded.size();i++)
+        {
+            std::cout << points[i] <<  "   " << reloaded[i] << std::endl;
+
+        }
+        cv::waitKey(0);
+*/
         if ( min_score == 1.0f || points.empty() )
         {
             ROS_INFO("Object not found in pointcloud");
@@ -395,7 +414,30 @@ namespace itable
         objects.push_back(new_object);
         publish_objects();
 
-#ifdef POINTCLOUD_CALLBACK
+#ifdef OBJECT_CALLBACK
+
+        //cv::Mat rgb_img = cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image;
+        //rectangle(rgb_img, minAreaRect(points), cv::Scalar(0,0,255,255));
+
+        cv::Mat screen = cv::Mat::zeros(1024, 1280, CV_32F);
+        for ( int i = 0;i < projected_points.size(); i++)
+        {
+            circle(screen, cv::Point2f(projected_points[i].y,projected_points[i].x), 5, cv::Scalar(255,0,0,255));
+        }
+
+        cv::namedWindow( "Display window", CV_WINDOW_NORMAL );// Create a window for display.
+        cvSetWindowProperty("Display window", CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN);
+        cv::imshow( "Display window", screen );
+
+        //cv::namedWindow( "RGB with circles", cv::WINDOW_AUTOSIZE );
+        //cv::resizeWindow("RGB with circles", 1024, 768);
+        //cv::imshow( "RGB with circles", rgb_img );
+        //cv::resizeWindow("RGB with circles", 1024, 768);
+
+        cv::waitKey(1);
+#endif
+#ifdef POINTCLOUD_CALLBACK1
+
         //cv::Mat rgb_img = cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image;
         //rectangle(rgb_img, minAreaRect(points), cv::Scalar(0,0,255,255));
         for ( int i = 0;i < boxx.size(); i++)
@@ -408,8 +450,7 @@ namespace itable
         cv::imshow( "RGB with circles", rgb_img );
         cv::resizeWindow("RGB with circles", 1024, 768);
 
-        cv::waitKey(0);
-
+        cv::waitKey(1);
 #endif
     }
 
@@ -701,7 +742,7 @@ namespace itable
         matcher.knnMatch( descriptors_marker, descriptors_scene, matches, 2 ); // find the 2 nearest neighbors
 
         std::vector< cv::DMatch > good_matches;
-        float nndrRatio = 0.50f;
+        float nndrRatio = 0.475f;
 
         for (size_t i = 0; i < matches.size(); ++i)
         {
@@ -715,7 +756,8 @@ namespace itable
                 good_matches.push_back(m1);
         }
 
-        if ( good_matches.size() < 4 ) // minimum points
+        std::cout << "MATHCES " << good_matches.size() << std::endl;
+        if ( good_matches.size() < 10 ) // minimum points
         {
             ROS_INFO("Could not find marker in the scene. There are less than 4 matches. Published homography is NOT valid");
             marker_found_valid = false;
