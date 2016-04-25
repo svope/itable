@@ -84,7 +84,12 @@ struct object
     float width;
     float height;
     float angle;
-    std::string icon_name;
+
+    float pcl_center_x;
+    float pcl_center_y;
+    float pcl_width;
+    float pcl_height;
+    float pcl_depth;
 };
 
 
@@ -148,6 +153,7 @@ private:
     int object_mode {1}; // 0 mask + offest 1 static 2 auto
     float object_offset { 200 };
     double max_corr_dist {0.08};
+    float table_depth;
 
     // Flags
     bool calculate_marker       {true};

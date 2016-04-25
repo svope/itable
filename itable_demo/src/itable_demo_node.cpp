@@ -141,6 +141,7 @@ void itable_demo::icon_callback(const ar_track_alvar_msgs::AlvarMarkers::ConstPt
         for ( auto it = icon->markers.begin(); it != icon->markers.end() ; it++)
         {
             last_icon_id = it->id;
+            icon_timer.restart();
         }
 
         //if ( icon->markers.empty() )
@@ -204,9 +205,28 @@ void itable_demo::object_callback(const itable_pkg::objects& msg)
         obj.width     = msg.objects[i].width;
         obj.height    = msg.objects[i].height;
         obj.angle     = msg.objects[i].angle;
+        obj.depth     = msg.objects[i].pcl_depth * 1000.0f; // from pcl to mm
+
+        table_depth = msg.table_depth;
+
+        if ( abs( table_depth - obj.depth * 1000.0f ) < 80 ) // it seems that object is on the table ~ is valid
+        {
+            object_timer.restart();
+            objects[i] = obj;
+            ROS_INFO("Object valid");
+        }
+        else
+        {
+            if ( object_valid() )
+            {
+                //objects.resize(1);
+                objects[0] = temp;
+            }
+            ROS_ERROR("Object NOT valid");
+        }
 
         //std::cout << obj.x << " " << obj.y << std::endl;
-
+        /*
         if ( abs(temp.x - obj.x) > 100 && abs(temp.y - obj.y) > 100 )
         {
             std::cout << "change a lot" << std::endl;
@@ -223,6 +243,17 @@ void itable_demo::object_callback(const itable_pkg::objects& msg)
         }
         else
             objects[i] = obj;
+        */
+    }
+
+    // If cannot localize object, the object is still valid for some time
+    if ( msg.objects.empty() )
+    {
+        if ( object_valid() )
+        {
+            objects.resize(1);
+            objects[0] = temp;
+        }
     }
 
     //ROS_INFO("Objects data updated");
@@ -397,27 +428,27 @@ void itable_demo::game()
         {
             if ( trig_prague->update( objects[0]) )
             {
-                ROS_ERROR("TRUE");
-                std::cout<< "LAST ICON ID <<<< " << last_icon_id << " <<< "<<std::endl;
-                if ( last_icon_id == 1 )
+                //ROS_ERROR("TRUE");
+                //std::cout<< "LAST ICON ID <<<< " << last_icon_id << " <<< "<<std::endl;
+                if ( last_icon_id == 1 && icon_valid() )
                     game_state = s_prague_hist;
-                else if (last_icon_id == 0)
+                else if ( last_icon_id == 0 && icon_valid() )
                     game_state = s_prague_movie;
             }
             else if ( trig_brno->update( objects[0]) )
             {
-                ROS_ERROR("TRUEBB");
-                std::cout<< "LAST ICON ID <<<< " << last_icon_id << " <<< "<<std::endl;
-                if ( last_icon_id == 1)
+                //ROS_ERROR("TRUEBB");
+                //std::cout<< "LAST ICON ID <<<< " << last_icon_id << " <<< "<<std::endl;
+                if ( last_icon_id == 1 && icon_valid() )
                     game_state = s_brno_hist;
-                else if (last_icon_id == 0)
+                else if ( last_icon_id == 0 && icon_valid() )
                     game_state = s_brno_movie;
             }
 
         }
         if ( !objects.empty() )
         {
-            if ( last_icon_id == 5)
+            if ( last_icon_id == 5 && icon_valid())
             {
                 game_state = s_quiz;
             }
@@ -444,11 +475,26 @@ void itable_demo::game()
         questions.erase( questions.begin() + index );
         answered_q.push_back( actual_q );
 
-        game_state = s_asked;
+        if ( homo_valid )
+            game_state = s_asked;
+        else
+            game_state = s_map_search;
+
         safe_time_done = false;
 
         break;
     }
+
+    case s_map_search:
+
+        window->clear();
+        quiz_text.setString(L"Hledám mapu... Chviličku strpení :)");
+        quiz_text.setColor( sf::Color::Red );
+        window->draw(quiz_text);
+        if ( homo_valid )
+            game_state = s_asked;
+
+        break;
 
     case s_asked:
     {
@@ -499,6 +545,14 @@ void itable_demo::game()
         sf::FloatRect bbox = paper_map.getGlobalBounds();
         if ( bbox.contains( sf::Vector2f( obj.x, obj.y) ) )
         {
+            // the cube is still on the "previous question" position
+            if ( abs(obj.x - last_map_position.x) < 20 || abs( obj.y - last_map_position.y) < 20
+                 && last_map_position.x > 0 )
+            {
+                ticking = false;
+                break;
+            }
+            // the cube is on the paper map, start timer
             if ( ticking == false )
             {
                 timer.restart();
@@ -506,6 +560,7 @@ void itable_demo::game()
             }
             else
             {
+                // stop the timer, the cube has moved
                 if ( abs(obj.x - last_obj_x) > 20 || abs( obj.y - last_obj_y) > 20 )
                 {
                     ticking = false;
@@ -515,6 +570,7 @@ void itable_demo::game()
                 }
             }
 
+            // scaling sprite and render timer
             sprite.setScale(   (obj.width ) / sprite.getLocalBounds().width,   (obj.height) / sprite.getLocalBounds().height );
             sprite.setOrigin ( sprite.getLocalBounds().width / 2.0 , sprite.getLocalBounds().height / 2.0);
             sprite.setRotation(obj.angle);
@@ -568,15 +624,6 @@ void itable_demo::game()
                     safe_time_done = false;
                     break;
                 }
-                else
-                {
-                    window->clear();
-                    window->draw(quiz_map);
-                    quiz_text.setString(L"Nemohu najít fyzickou mapu :(");
-                    quiz_text.setColor( sf::Color::Red );
-                    window->draw(quiz_text);
-                    safe_time_done = false;
-                }
             }
         }
         else
@@ -590,7 +637,7 @@ void itable_demo::game()
 
         if ( !objects.empty() )
         {
-            if ( last_icon_id == 2)
+            if ( last_icon_id == 2 && icon_valid() )
             {
                 game_state = s_init;
             }
@@ -624,7 +671,7 @@ void itable_demo::game()
 
         if ( !objects.empty() )
         {
-            if ( last_icon_id == 2)
+            if ( last_icon_id == 2 && icon_valid() )
             {
                 game_state = s_init;
             }
@@ -664,7 +711,7 @@ void itable_demo::game()
 
         if ( !objects.empty() )
         {
-            if ( last_icon_id == 2)
+            if ( last_icon_id == 2 && icon_valid() )
             {
                 game_state = s_init;
             }
@@ -680,7 +727,7 @@ void itable_demo::game()
         window->draw(movie_prague);
         if ( !objects.empty() )
         {
-            if ( last_icon_id == 2)
+            if ( last_icon_id == 2 && icon_valid() )
             {
                 movie_prague.pause();
                 game_state = s_init;
@@ -693,7 +740,7 @@ void itable_demo::game()
         window->draw(text_prague);
         if ( !objects.empty() )
         {
-            if ( last_icon_id == 2 )
+            if ( last_icon_id == 2 && icon_valid())
             {
                 game_state = s_init;
             }
@@ -708,7 +755,7 @@ void itable_demo::game()
 
         if ( !objects.empty() )
         {
-            if ( last_icon_id == 2)
+            if ( last_icon_id == 2 && icon_valid() )
             {
                 movie_brno.pause();
                 game_state = s_init;
@@ -721,7 +768,7 @@ void itable_demo::game()
         window->draw(brno);
         if ( !objects.empty() )
         {
-            if ( last_icon_id == 2)
+            if ( last_icon_id == 2 && icon_valid() )
             {
                 game_state = s_init;
             }

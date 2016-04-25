@@ -277,7 +277,9 @@ namespace itable
         if (inliers->indices.size () == 0)
         {
             ROS_INFO("Could not find planar model for this pointcloud. This could affect object recognition");
+            table_depth = cloud_filtered->points[inliers->indices[0]].z;
         }
+
 
 
         // Extract the inliers
@@ -352,8 +354,11 @@ namespace itable
         // Object found, now project it to projector space
         std::vector<cv::Point3f> points;
         std::vector<cv::Point2f> projected_points;
-
+#ifdef POINTCLOUD_CALLBACK1
         std::vector<cv::Point2f> boxx;
+#endif
+        std::vector<cv::Point2f> pcl_2d;
+        float depths_sum = 0.0f;
 
 /*
         std::vector< float > depths;
@@ -363,9 +368,14 @@ namespace itable
         for( int i =0; i < cloud_lowest_score->size(); i++)
         {
             points.push_back(cv::Point3f((*cloud_lowest_score)[i].x,(*cloud_lowest_score)[i].y,(*cloud_lowest_score)[i].z));
+#ifdef POINTCLOUD_CALLBACK1
             boxx.push_back( project3D_to_pixel(cv::Point3f((*cloud_lowest_score)[i].x,(*cloud_lowest_score)[i].y,(*cloud_lowest_score)[i].z)) );
-           // depths.push_back( (*cloud_lowest_score)[i].z );
+#endif
+            pcl_2d.push_back( cv::Point2f((*cloud_lowest_score)[i].x,(*cloud_lowest_score)[i].y));
+            depths_sum += (*cloud_lowest_score)[i].z;
+            // depths.push_back( (*cloud_lowest_score)[i].z );
         }
+        depths_sum /= static_cast<float>( cloud_lowest_score->size() );
 /*
         for ( int i = 0; i < boxx.size() ; i++ )
         {
@@ -403,7 +413,8 @@ namespace itable
         // Save object information and later publish
         objects.clear();
         object new_object;
-        //cv::RotatedRect b_box   = minAreaRect(boxx);
+
+        // Object in projector space
         cv::RotatedRect b_box   = minAreaRect(projected_points);
         new_object.center_x     = b_box.center.x;
         new_object.center_y     = b_box.center.y;
@@ -411,13 +422,18 @@ namespace itable
         new_object.height       = b_box.size.height;
         new_object.angle        = b_box.angle;
 
+        // Object in pointcloud
+        cv::RotatedRect pcl_box     = minAreaRect(pcl_2d);
+        new_object.pcl_center_x     = pcl_box.center.x;
+        new_object.pcl_center_y     = pcl_box.center.y;
+        new_object.pcl_width        = pcl_box.size.width;
+        new_object.pcl_height       = pcl_box.size.height;
+        new_object.pcl_depth        = depths_sum;
+
         objects.push_back(new_object);
         publish_objects();
 
 #ifdef OBJECT_CALLBACK
-
-        //cv::Mat rgb_img = cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image;
-        //rectangle(rgb_img, minAreaRect(points), cv::Scalar(0,0,255,255));
 
         cv::Mat screen = cv::Mat::zeros(1024, 1280, CV_32F);
         for ( int i = 0;i < projected_points.size(); i++)
@@ -429,17 +445,9 @@ namespace itable
         cvSetWindowProperty("Display window", CV_WND_PROP_FULLSCREEN, CV_WINDOW_FULLSCREEN);
         cv::imshow( "Display window", screen );
 
-        //cv::namedWindow( "RGB with circles", cv::WINDOW_AUTOSIZE );
-        //cv::resizeWindow("RGB with circles", 1024, 768);
-        //cv::imshow( "RGB with circles", rgb_img );
-        //cv::resizeWindow("RGB with circles", 1024, 768);
-
         cv::waitKey(1);
 #endif
 #ifdef POINTCLOUD_CALLBACK1
-
-        //cv::Mat rgb_img = cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image;
-        //rectangle(rgb_img, minAreaRect(points), cv::Scalar(0,0,255,255));
         for ( int i = 0;i < boxx.size(); i++)
         {
             circle(rgb_img, boxx[i], 0.5, cv::Scalar(0,0,255,255));
@@ -628,6 +636,7 @@ namespace itable
 
             obj_array.objects.push_back( obj );
         }
+        obj_array.table_depth = table_depth;
 
         objects_pub.publish(obj_array);
     }

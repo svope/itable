@@ -52,6 +52,7 @@ struct object
     float width;
     float height;
     float angle;
+    float depth;
 };
 
 struct question
@@ -123,6 +124,8 @@ private:
     void caminfo_callback(const sensor_msgs::CameraInfo& msg_camerainfo);
     cv::Point3f backproject_pixel_to_3D( cv:: Point2f cam_2D, float depth);
     cv::Point2f bitmap_to_projector( int x, int y);
+    bool icon_valid() { return icon_timer.getElapsedTime().asSeconds() < 0.4f ? true : false;}
+    bool object_valid() { return object_timer.getElapsedTime().asSeconds() < 0.4f ? true : false;}
 
     // SFML
     sf::RenderWindow* window;
@@ -146,15 +149,19 @@ private:
     bool cam_info_set {false };
     cv::Mat cam_intrinsic;
 
-
-    // Object
 public:
+    // Object
     std::vector< object > objects;
     int last_icon_id { -1 };
     bool changed_alot { false };
+    sf::Clock object_timer;
+    float table_depth;
+
+    // icon timer
+    sf::Clock icon_timer;
 
     // game states
-    enum game_states { s_init, s_prague, s_brno_hist, s_brno_movie, s_prague_hist, s_prague_movie , s_quiz, s_asked,s_answered,s_not_answered};
+    enum game_states { s_init, s_prague, s_brno_hist, s_brno_movie, s_prague_hist, s_prague_movie , s_quiz, s_asked,s_answered,s_not_answered, s_map_search};
     game_states game_state { s_init };
     bool demo_running { true };
 
@@ -196,6 +203,7 @@ public:
     sf::Clock timeout;
     bool timeout_tick { false };
     sf::Vector2f last_mount;
+    sf::Vector2f last_map_position {sf::Vector2f(-100,-100)};
 
     sf::SoundBuffer succ,fail;
     sf::Sound sound;

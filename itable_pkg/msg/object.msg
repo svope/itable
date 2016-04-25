@@ -4,3 +4,8 @@ float32 center_y
 float32 width
 float32 height
 float32 angle
+float32 pcl_center_x
+float32 pcl_center_y
+float32 pcl_width
+float32 pcl_height
+float32 pcl_depth
