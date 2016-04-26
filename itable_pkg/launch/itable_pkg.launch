@@ -5,22 +5,22 @@
   
   <!-- Marker -->
   <!-- should be marker position + homography matrix calculated? -->
-  <arg name="calculate_marker" 	default="false"/>
+  <arg name="calculate_marker" 	default="true"/>
   <!-- Path to marker image file -->
   <arg name="marker_path" 		default="$(find itable_pkg)/data/marker.png"/>
   <!-- after how many seconds should be marker position recalculated -->
-  <arg name="recal_marker_time" default="3"/>
+  <arg name="recal_marker_time" default="0.5"/>
   
   <!-- Mask -->
   <!-- should be mask calculated? -->
-  <arg name="calculate_mask" 	default="false"/>
+  <arg name="calculate_mask" 	default="true"/>
   <!-- mode: marker+offset - Mask will be calculate in range FROM 0 TO marker depth - mask_offset depth [mm]-->
   <!-- mode: static - Mask will be calculate in range FROM min_mask_depth TO max_mask_depth [mm]-->
   <!-- mode: auto - If marker is valid then mode=="marker+offset", else mode=="static"-->
   <arg name="mask_mode" 		default="static"/>
   <arg name="mask_offset" 		default="200"/>
   <arg name="min_mask_depth" 	default="500"/>
-  <arg name="max_mask_depth" 	default="800"/>
+  <arg name="max_mask_depth" 	default="1200"/>
   
   <!-- Object -->
   <!-- should object be detected? -->
@@ -34,7 +34,7 @@
   <arg name="min_cloud_depth" 	default="1200"/>
   <arg name="max_cloud_depth" 	default="1500"/>
   <!-- Parametr of method ICP - MaxCorrespondenceDistance. Could be usefull when no object is found -->
-  <arg name="max_corr_distance"				default="0.8" />
+  <arg name="max_corr_distance"				default="0.85" />
 
   
   <node pkg="itable_pkg" type="itable_pkg_node" name="itable_pkg" output="screen">

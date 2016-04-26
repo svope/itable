@@ -10,7 +10,7 @@ itable_demo::itable_demo()
 
     prague_trigger.setPosition(380,350);
     sf::Texture* prague_icon = new sf::Texture();
-    if (!prague_icon->loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/maps/prague_icon.png"))
+    if (!prague_icon->loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/maps/prague_icon.png"))
     {
         ROS_ERROR("Cannot load image file ");
     }
@@ -21,18 +21,18 @@ itable_demo::itable_demo()
     brno_trigger.setPosition( 780,730);
 
     sf::Texture* brno_icon = new sf::Texture();
-    if (!brno_icon->loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/maps/brno_icon.png"))
+    if (!brno_icon->loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/maps/brno_icon.png"))
     {
         ROS_ERROR("Cannot load image file ");
     }
     brno_icon->setSmooth(true);
     brno_trigger.setTexture(*brno_icon);
 
-    trig_prague = new Trigger(&window, "/home/petr/catkin_ws/src/itable_demo/data/square.png", &prague_trigger );
-    trig_brno   = new Trigger(&window, "/home/petr/catkin_ws/src/itable_demo/data/square.png", &brno_trigger );
+    trig_prague = new Trigger(&window, "/home/artable/svoboda_ws/src/itable_demo/data/square.png", &prague_trigger );
+    trig_brno   = new Trigger(&window, "/home/artable/svoboda_ws/src/itable_demo/data/square.png", &brno_trigger );
 
     // movies load and positioning
-    if (!movie_prague.openFromFile("/home/petr/catkin_ws/src/itable_demo/data/prague.mp4"))
+    if (!movie_prague.openFromFile("/home/artable/svoboda_ws/src/itable_demo/data/prague.mp4"))
         {
             std::cout <<"neporadilo se nahrat video praha" << std::endl;
         }
@@ -41,14 +41,14 @@ itable_demo::itable_demo()
     float pos_y = win_height - 1080 * tmp;
     movie_prague.fit(0, pos_y / 2.0, win_width, 1080 * tmp);
 
-    if (!movie_brno.openFromFile("/home/petr/catkin_ws/src/itable_demo/data/brno.mp4"))
+    if (!movie_brno.openFromFile("/home/artable/svoboda_ws/src/itable_demo/data/brno.mp4"))
     {
         std::cout <<"neporadilo se nahrat video brno.mp4" << std::endl;
     }
     movie_brno.fit(0, pos_y / 2.0, win_width, 1080 * tmp);
 
     // Font etc
-    if (!font.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/arial.ttf"))
+    if (!font.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/arial.ttf"))
     {
         ROS_ERROR("Could not load font");
     }
@@ -209,7 +209,7 @@ void itable_demo::object_callback(const itable_pkg::objects& msg)
 
         table_depth = msg.table_depth;
 
-        if ( abs( table_depth - obj.depth * 1000.0f ) < 80 ) // it seems that object is on the table ~ is valid
+        if ( abs( table_depth - obj.depth ) < 70 ) // it seems that object is on the table ~ is valid
         {
             object_timer.restart();
             objects[i] = obj;
@@ -222,7 +222,11 @@ void itable_demo::object_callback(const itable_pkg::objects& msg)
                 //objects.resize(1);
                 objects[0] = temp;
             }
-            ROS_ERROR("Object NOT valid");
+            else
+            {
+                objects.clear();
+                ROS_INFO("No object found");
+            }
         }
 
         //std::cout << obj.x << " " << obj.y << std::endl;
@@ -254,6 +258,11 @@ void itable_demo::object_callback(const itable_pkg::objects& msg)
             objects.resize(1);
             objects[0] = temp;
         }
+        else
+        {
+            objects.clear();
+            ROS_INFO("No object found");
+        }
     }
 
     //ROS_INFO("Objects data updated");
@@ -261,8 +270,9 @@ void itable_demo::object_callback(const itable_pkg::objects& msg)
 
 void itable_demo::create_window(std::string window_name, bool fullscreen )
 {
+    sf::VideoMode desktop = sf::VideoMode::getDesktopMode();
     if ( fullscreen )
-        window =  new sf::RenderWindow(sf::VideoMode(win_width,win_height),window_name,sf::Style::Fullscreen);
+        window =  new sf::RenderWindow(desktop/*sf::VideoMode(win_width,win_height)*/,window_name,sf::Style::Fullscreen);
     else
         window = new sf::RenderWindow(sf::VideoMode(win_width,win_height),window_name,sf::Style::Resize);
 
@@ -271,9 +281,9 @@ void itable_demo::create_window(std::string window_name, bool fullscreen )
 
 void itable_demo::load_data()
 {
-    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/maps/brno.png");
-    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/maps/praha.jpg");
-    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/maps/map_CR.png");
+    img_files.push_back("/home/artable/svoboda_ws/src/itable_demo/data/maps/brno.png");
+    img_files.push_back("/home/artable/svoboda_ws/src/itable_demo/data/maps/praha.jpg");
+    img_files.push_back("/home/artable/svoboda_ws/src/itable_demo/data/maps/map_CR.png");
 
     for ( std::vector< std::string >::iterator it = img_files.begin(); it != img_files.end(); it++)
     {
@@ -305,7 +315,7 @@ void itable_demo::load_data()
 
 
     // quiz
-    if (!CR_mount.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/maps/CR_hory.png"))
+    if (!CR_mount.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/maps/CR_hory.png"))
     {
         ROS_ERROR("Cannot load image file CR_hory");
     }
@@ -318,7 +328,7 @@ void itable_demo::load_data()
     quiz_text.setCharacterSize(90); // in pixels, not points!
     quiz_text.setColor(sf::Color::White);
 
-    if (!panorama_tex.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/maps/panorama.jpg"))
+    if (!panorama_tex.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/maps/panorama.jpg"))
     {
         ROS_ERROR("Cannot load image panorama.jpg");
     }
@@ -326,7 +336,7 @@ void itable_demo::load_data()
     panorama.setTexture(panorama_tex);
     panorama.setPosition(0,0);
 
-    if ( !sprite_texture.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/square.png") )
+    if ( !sprite_texture.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/square.png") )
     {
         ROS_ERROR("Cannot load sprite" );
     }
@@ -334,12 +344,12 @@ void itable_demo::load_data()
     sprite.setTexture(sprite_texture);
 
     // sounds
-    if (!succ.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/success.wav"))
+    if (!succ.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/success.wav"))
     {
         ROS_ERROR("Cannot open success.wav file");
     }
 
-    if (!fail.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/fail.wav"))
+    if (!fail.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/fail.wav"))
     {
         ROS_ERROR("Cannot open fail.wav file");
     }
@@ -424,7 +434,7 @@ void itable_demo::game()
         window->draw( *(trig_brno->draw()));
 
 
-        if ( !objects.empty() && last_icon_id != 2 ) // 2 ~ back
+        if ( !objects.empty() && last_icon_id != 2 && icon_valid() ) // 2 ~ back
         {
             if ( trig_prague->update( objects[0]) )
             {
@@ -457,6 +467,7 @@ void itable_demo::game()
 
     case s_quiz:
     {
+/*
         sf::CircleShape c( 10 );
         c.setOrigin(0,0);
         c.setFillColor(sf::Color::Red);
@@ -464,7 +475,7 @@ void itable_demo::game()
         c.setPosition( Krkonose.x, Krkonose.y);
         window->draw(c);
         break;
-
+*/
 
         if ( questions.empty() )
             questions = answered_q;
@@ -488,9 +499,18 @@ void itable_demo::game()
     case s_map_search:
 
         window->clear();
-        quiz_text.setString(L"Hledám mapu... Chviličku strpení :)");
+        quiz_text.setString(L"Hledám mapu...\nChviličku strpení :)");
         quiz_text.setColor( sf::Color::Red );
         window->draw(quiz_text);
+
+        if ( !objects.empty() )
+        {
+            if ( last_icon_id == 2 && icon_valid())
+            {
+                game_state = s_init;
+            }
+        }
+
         if ( homo_valid )
             game_state = s_asked;
 
@@ -621,6 +641,8 @@ void itable_demo::game()
                     else
                         game_state = s_not_answered;
 
+                    last_map_position = sf::Vector2f(obj.x,obj.y);
+
                     safe_time_done = false;
                     break;
                 }
@@ -628,6 +650,8 @@ void itable_demo::game()
         }
         else
         {
+            //last_map_position = sf::Vector2f( -100.0,-100.0);
+
             ticking = false;
         }
 
@@ -690,9 +714,8 @@ void itable_demo::game()
         window->draw(quiz_text);
 
         sf::CircleShape c( 70 );
-        c.setOrigin(0,0);
+        c.setOrigin(70,70);
         c.setPosition( last_mount.x, last_mount.y );
-        //std::cout << last_mount.x << " " << last_mount.y << std::endl;
         c.setFillColor(sf::Color::Green);
         window->draw( c );
 
@@ -927,20 +950,23 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "itable_demo");
     itable::itable_demo demo;
 
+    /*
+     * Cout all possible video modes
+    std::vector<sf::VideoMode> modes = sf::VideoMode::getFullscreenModes();
+    for (std::size_t i = 0; i < modes.size(); ++i)
+    {
+        sf::VideoMode mode = modes[i];
+        std::cout << "Mode #" << i << ": "
+                  << mode.width << "x" << mode.height << " - "
+                  << mode.bitsPerPixel << " bpp" << std::endl;
+    }
+    return 0;
+    */
     demo.ros_init();
     demo.create_window("Game window",true);
     //demo.window = new sf::RenderWindow(sf::VideoMode(960,540),"temp",sf::Style::Resize);
     demo.load_data();
 
-
-    itable::object obj;
-    obj.width = 30;
-    obj.height = 30;
-    obj.x = 300;
-    obj.y = 300;
-    obj.angle = 0;
-
-    demo.objects.push_back(obj);
 
     while ( ros::ok() && demo.running() )
     {

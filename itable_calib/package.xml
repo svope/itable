@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<package>
+  <name>itable_calib</name>
+  <version>0.0.1</version>
+  <description>The intelligent table projector kinect2 calibration</description>
+
+  <maintainer email="xsvobo91@stud.fit.vutbr.cz">Petr Svoboda</maintainer>
+
+  <license>BUT OPEN SOURCE LICENSE</license>
+
+
+  <!-- <url type="website">TBA</url> -->
+
+  <author email="xsvobo91@stud.fit.vutbr.cz">Petr Svoboda</author>
+
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>tf</build_depend>
+  <build_depend>image_transport</build_depend>
+  <build_depend>cv_bridge</build_depend>
+  <build_depend>OpenCV</build_depend>
+  <build_depend>libpcl-all-dev</build_depend>
+  <build_depend>pcl_conversions</build_depend>
+  <run_depend>pcl_conversions</run_depend>
+  <run_depend>libpcl-all</run_depend>
+  <run_depend>roscpp</run_depend>
+  <run_depend>cv_bridge</run_depend>
+  <run_depend>OpenCV</run_depend>
+  <run_depend>tf</run_depend>
+  <run_depend>image_transport</run_depend>
+
+
+
+
+  <!-- The export tag contains other, unspecified, tags -->
+  <export>
+
+
+  </export>
+</package>

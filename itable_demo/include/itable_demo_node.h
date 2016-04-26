@@ -125,7 +125,7 @@ private:
     cv::Point3f backproject_pixel_to_3D( cv:: Point2f cam_2D, float depth);
     cv::Point2f bitmap_to_projector( int x, int y);
     bool icon_valid() { return icon_timer.getElapsedTime().asSeconds() < 0.4f ? true : false;}
-    bool object_valid() { return object_timer.getElapsedTime().asSeconds() < 0.4f ? true : false;}
+    bool object_valid() { return object_timer.getElapsedTime().asSeconds() < 0.2f ? true : false;}
 
     // SFML
     sf::RenderWindow* window;

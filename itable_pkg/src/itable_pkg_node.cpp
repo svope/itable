@@ -4,7 +4,7 @@
 //#define IMG_CALLBACK
 //#define POINTCLOUD_CALLBACK
 //#define POINTCLOUD_CALLBACK1
-#define OBJECT_CALLBACK
+//#define OBJECT_CALLBACK
 
 namespace itable
 {
@@ -276,8 +276,11 @@ namespace itable
 
         if (inliers->indices.size () == 0)
         {
-            ROS_INFO("Could not find planar model for this pointcloud. This could affect object recognition");
-            table_depth = cloud_filtered->points[inliers->indices[0]].z;
+            ROS_ERROR("Could not find planar model for this pointcloud. This could affect object recognition");
+        }
+        else
+        {
+            table_depth = cloud_filtered->points[inliers->indices[0]].z * 1000.0f; // from pointcloud to [mm]
         }
 
 
@@ -375,6 +378,7 @@ namespace itable
             depths_sum += (*cloud_lowest_score)[i].z;
             // depths.push_back( (*cloud_lowest_score)[i].z );
         }
+        ROS_ERROR("%f", depths_sum );
         depths_sum /= static_cast<float>( cloud_lowest_score->size() );
 /*
         for ( int i = 0; i < boxx.size() ; i++ )
@@ -438,7 +442,7 @@ namespace itable
         cv::Mat screen = cv::Mat::zeros(1024, 1280, CV_32F);
         for ( int i = 0;i < projected_points.size(); i++)
         {
-            circle(screen, cv::Point2f(projected_points[i].y,projected_points[i].x), 5, cv::Scalar(255,0,0,255));
+            circle(screen, cv::Point2f(projected_points[i].x,projected_points[i].y), 5, cv::Scalar(255,0,0,255));
         }
 
         cv::namedWindow( "Display window", CV_WINDOW_NORMAL );// Create a window for display.
@@ -633,6 +637,12 @@ namespace itable
             obj.width    = it->width;
             obj.height   = it->height;
             obj.angle    = it->angle;
+
+            obj.pcl_center_x = it->pcl_center_x;
+            obj.pcl_center_y = it->pcl_center_y;
+            obj.pcl_width    = it->pcl_width;
+            obj.pcl_height   = it->pcl_height;
+            obj.pcl_depth    = it->pcl_depth;
 
             obj_array.objects.push_back( obj );
         }

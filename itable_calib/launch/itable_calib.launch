@@ -1,0 +1,24 @@
+<launch>
+
+  <arg name="package_dir_path"  default="$(find itable_calib)"/>
+  <arg name="RGB_topic"         default="/kinect2/qhd/image_color_rect"/>
+  <arg name="depth_topic"       default="/kinect2/qhd/image_depth_rect"/>
+  <arg name="camerainfo_topic"  default="/kinect2/qhd/camera_info"/>
+  
+  <arg name="projector_width"   default="1280"/>
+  <arg name="projector_height"  default="1024"/>
+  
+  <!-- Delay value is time [ms] between pressing space key (to start searching for couples of 2D and 3D points) and actual start of searching --> 
+  <arg name="capture_delay"     default="0"/>
+  
+  <node pkg="itable_calib" type="itable_calib" name="itable_calib" output="screen">
+    <param name="package_dir_path"  type="str"    value="$(arg package_dir_path)"/>
+	<param name="RGB_topic"         type="str"    value="$(arg RGB_topic)"/>
+	<param name="depth_topic"       type="str"    value="$(arg depth_topic)"/>
+	<param name="camerainfo_topic"  type="str"    value="$(arg camerainfo_topic)"/>
+	<param name="projector_width"   type="int"    value="$(arg projector_width)"/>
+	<param name="projector_height"  type="int"    value="$(arg projector_height)"/>
+	<param name="capture_delay"     type="double" value="$(arg capture_delay)"/>
+  </node>
+  
+</launch>
