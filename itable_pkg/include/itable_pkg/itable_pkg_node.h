@@ -200,16 +200,17 @@ private:
     void recalculate_mask( pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mask, cv::Mat rgb_img);
     void find_object_in_pointcloud(pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud,cv::Mat rgb_img);
 
+    // Project pointcloud point to RGB space
+    cv::Point2f project3D_to_pixel(cv::Point3f point3D);
+    // Project point from 2D RGB space + depth to pointcloud point
+    cv::Point3f backproject_pixel_to_3D( cv:: Point2f, float depth);
     void project3D_to_pixel( std::vector<cv::Point3d>& input_3D, std::vector<cv::Point2f>& output_2D );
     void backproject_pixel_to_3D( std::vector<cv::Point3f>& input, std::vector<cv::Point3f>& output);
-    cv::Point2f project3D_to_pixel(cv::Point3f point3D);
-    cv::Point3f backproject_pixel_to_3D( cv:: Point2f, float depth);
-
 };
 
 
 
-}
+} // namespace
 
 
 #endif

@@ -1,30 +1,22 @@
 #include "itable_pkg/itable_pkg_node.h"
 
-//#define LOAD_CALIB
-//#define IMG_CALLBACK
-//#define POINTCLOUD_CALLBACK
-//#define POINTCLOUD_CALLBACK1
-//#define OBJECT_CALLBACK
+// Debugging homography
+// #define HOMO_DEBUG
+
+// Debugging mask calculation
+// #define MASK_DEBUG
+
+// Debugging pointcloud to RGB projection
+//#define PCL2RGB_DEBUG
+
+// Debugging object pcl to projector space projection
+//#define OBJECT_DEBUG
 
 namespace itable
 {
     itable_service::itable_service()
     {
         marker_homography = cv::Mat(3,3, CV_64F, cvScalar(0.));
-
-
-#ifdef LOAD_CALIB
-        cv::FileStorage fs("/home/petr/Desktop/pkg/src/iai_kinect2/kinect2_bridge/data/000393642047/calib_color.yaml", cv::FileStorage::READ);
-        cv::Mat testCM,testDC;
-        fs["cameraMatrix"] >> testCM ;
-        fs["distortionCoefficients"] >> testDC;
-        fs.release();
-        cam_info_set = true;
-        cam_intrinsic = testCM;
-        cam_dist_coeffs = testDC;
-#endif
-
-
     }
 
     itable_service::~itable_service()
@@ -38,15 +30,15 @@ namespace itable
         std::string temp;
 
         // get parameters from launch file
-        private_handle.getParam("topics_quality", topics_quality);
-        private_handle.getParam("package_dir_path",package_dir_path);
+        private_handle.getParam("topics_quality"    , topics_quality);
+        private_handle.getParam("package_dir_path"  ,package_dir_path);
         // Marker
-        private_handle.getParam("calculate_marker",calculate_marker);
-        private_handle.getParam("marker_path",marker_path);
-        private_handle.getParam("recal_marker_time",recalculate_marker_time);
+        private_handle.getParam("calculate_marker"  ,calculate_marker);
+        private_handle.getParam("marker_path"       ,marker_path);
+        private_handle.getParam("recal_marker_time" ,recalculate_marker_time);
         // Mask
-        private_handle.getParam("calculate_mask",calculate_mask);
-        private_handle.getParam("mask_mode",temp);
+        private_handle.getParam("calculate_mask"    ,calculate_mask);
+        private_handle.getParam("mask_mode"         ,temp);
 
         if ( temp == "marker+offset")
             mask_mode = 0;
@@ -54,13 +46,13 @@ namespace itable
             mask_mode = 2;
         else mask_mode = 1;
 
-        private_handle.getParam("mask_offest",mask_offset);
-        private_handle.getParam("min_mask_depth",min_mask_depth);
-        private_handle.getParam("max_mask_depth",max_mask_depth);
+        private_handle.getParam("mask_offest"       ,mask_offset);
+        private_handle.getParam("min_mask_depth"    ,min_mask_depth);
+        private_handle.getParam("max_mask_depth"    ,max_mask_depth);
 
         // Objects
-        private_handle.getParam("calculate_object",calculate_object);
-        private_handle.getParam("object_mode",temp);
+        private_handle.getParam("calculate_object"  ,calculate_object);
+        private_handle.getParam("object_mode"       ,temp);
 
         if ( temp == "marker+offset")
             mask_mode = 0;
@@ -68,25 +60,22 @@ namespace itable
             mask_mode = 2;
         else mask_mode = 1;
 
-        private_handle.getParam("object_offest",object_offset);
-        private_handle.getParam("min_cloud_depth",min_cloud_depth);
-        private_handle.getParam("max_cloud_depth",max_cloud_depth);
-
-        private_handle.getParam("max_corr_distance",max_corr_dist);
+        private_handle.getParam("object_offest"     ,object_offset);
+        private_handle.getParam("min_cloud_depth"   ,min_cloud_depth);
+        private_handle.getParam("max_cloud_depth"   ,max_cloud_depth);
+        private_handle.getParam("max_corr_distance" ,max_corr_dist);
 
         // Subscribe
-        depth_sub.subscribe     (node_handle, "/kinect2/" + topics_quality + "/image_depth_rect", 1);
-        rgb_sub.subscribe       (node_handle, "/kinect2/" + topics_quality + "/image_color_rect",1);
-        pointcloud_sub.subscribe(node_handle, "/kinect2/" + topics_quality + "/points",1);
-        camerainfo_sub.subscribe(node_handle, "/kinect2/" + topics_quality + "/camera_info",1);
+        depth_sub.subscribe     (node_handle, "/kinect2/" + topics_quality + "/image_depth_rect", 10);
+        rgb_sub.subscribe       (node_handle, "/kinect2/" + topics_quality + "/image_color_rect", 10);
+        pointcloud_sub.subscribe(node_handle, "/kinect2/" + topics_quality + "/points", 10);
+        camerainfo_sub.subscribe(node_handle, "/kinect2/" + topics_quality + "/camera_info", 10);
 
         camerainfo_sub.registerCallback(&itable_service::caminfo_callback, this);
 
-        //synchronizer_rgb_depth.reset( new synchronizer_rgb_depth(exact_sync_rgb_depth(10), rgb_sub, depth_sub));
         sync_rgb_depth = new synchronizer_rgb_depth(exact_sync_rgb_depth(10), rgb_sub, depth_sub);
         sync_rgb_depth->registerCallback(&itable_service::image_callback, this);
 
-        //synchronizer_pointcloud.reset( new synchronizer_pointcloud( exact_sync_pointcloud_rgb(10),pointcloud_sub,rgb_sub));
         sync_pointcloud = new synchronizer_pointcloud( exact_sync_pointcloud_rgb(10),pointcloud_sub,rgb_sub);
         sync_pointcloud->registerCallback(&itable_service::pointcloud_callback, this);
 
@@ -103,8 +92,8 @@ namespace itable
 
     void itable_service::image_callback(const sensor_msgs::ImageConstPtr& msg_rgb, const sensor_msgs::ImageConstPtr& msg_depth)
     {
-        ROS_INFO("new image_callback");
-        cv::Mat rgb_img = cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image;
+        ROS_INFO_ONCE("image_callback called (this msg is showed just once)");
+        cv::Mat rgb_img   = cv_bridge::toCvShare(msg_rgb, msg_rgb->encoding)->image;
         cv::Mat depth_img = cv_bridge::toCvCopy(msg_depth)->image;
 	
         double time_diff = ros::Time::now().toSec() - marker_timer;
@@ -113,7 +102,7 @@ namespace itable
             marker_timer = ros::Time::now().toSec();
             find_marker(rgb_img, depth_img);
 
-#ifdef IMG_CALLBACK
+#ifdef HOMO_DEBUG
             cv::Point2f uno,dos,tres;
             uno = cv::Point2f(230,390);
 
@@ -138,7 +127,7 @@ namespace itable
 
     void itable_service::pointcloud_callback(const sensor_msgs::PointCloud2ConstPtr& msg_pointcloud,const sensor_msgs::ImageConstPtr& msg_rgb)
     {
-        ROS_INFO("Pointcloud callback");
+        ROS_INFO_ONCE("Pointcloud callback (this msg is showed just once)");
         // No interest in pointcloud data
         if ( !calculate_mask && !calculate_object )
             return;
@@ -212,7 +201,7 @@ namespace itable
         }
 
 
-#ifdef POINTCLOUD_CALLBACK2
+#ifdef MASK_DEBUG
         cv::Mat proj = cv::Mat(800,1280, CV_8U, cvScalar(0.));
         for ( int i =0;i < mask_points.size() ; i++)
             proj.at<uchar>( mask_points[i].y,mask_points[i].x) = 255;
@@ -312,7 +301,6 @@ namespace itable
         // Set the max correspondence distance to 5cm (e.g., correspondences with higher distances will be ignored)
         icp.setMaxCorrespondenceDistance ( max_corr_dist );
         icp.setInputTarget (cloud_box);
-        //icp.setInputSource (cloud_box);
 
         pcl::PointCloud<pcl::PointXYZ>::Ptr  cloud_lowest_score ( new pcl::PointCloud<pcl::PointXYZ> );
 
@@ -339,7 +327,6 @@ namespace itable
             if (icp.hasConverged ())
             {
                 std::cout << "\nICP has converged, score is " << icp.getFitnessScore () << " and size "<< cloud_cluster->size() << std::endl;
-                //std::cout << "number of points " << cloud_cluster->size() << " box "<< cloud_box->size()<<std::endl;
                 if ( icp.getFitnessScore () < min_score )
                 {
                     cloud_lowest_score = cloud_cluster;
@@ -352,12 +339,11 @@ namespace itable
         }
 
         ROS_INFO("Min score is %f",min_score);
-       // std::cout << cloud_lowest_score->size() << std::endl;
 
         // Object found, now project it to projector space
         std::vector<cv::Point3f> points;
         std::vector<cv::Point2f> projected_points;
-#ifdef POINTCLOUD_CALLBACK1
+#ifdef PCL2RGB_DEBUG
         std::vector<cv::Point2f> boxx;
 #endif
         std::vector<cv::Point2f> pcl_2d;
@@ -371,7 +357,7 @@ namespace itable
         for( int i =0; i < cloud_lowest_score->size(); i++)
         {
             points.push_back(cv::Point3f((*cloud_lowest_score)[i].x,(*cloud_lowest_score)[i].y,(*cloud_lowest_score)[i].z));
-#ifdef POINTCLOUD_CALLBACK1
+#ifdef PCL2RGB_DEBUG
             boxx.push_back( project3D_to_pixel(cv::Point3f((*cloud_lowest_score)[i].x,(*cloud_lowest_score)[i].y,(*cloud_lowest_score)[i].z)) );
 #endif
             pcl_2d.push_back( cv::Point2f((*cloud_lowest_score)[i].x,(*cloud_lowest_score)[i].y));
@@ -437,7 +423,7 @@ namespace itable
         objects.push_back(new_object);
         publish_objects();
 
-#ifdef OBJECT_CALLBACK
+#ifdef OBJECT_DEBUG
 
         cv::Mat screen = cv::Mat::zeros(1024, 1280, CV_32F);
         for ( int i = 0;i < projected_points.size(); i++)
@@ -451,7 +437,7 @@ namespace itable
 
         cv::waitKey(1);
 #endif
-#ifdef POINTCLOUD_CALLBACK1
+#ifdef PCL2RGB_DEBUG
         for ( int i = 0;i < boxx.size(); i++)
         {
             circle(rgb_img, boxx[i], 0.5, cv::Scalar(0,0,255,255));
@@ -775,10 +761,9 @@ namespace itable
                 good_matches.push_back(m1);
         }
 
-        std::cout << "MATHCES " << good_matches.size() << std::endl;
         if ( good_matches.size() < 10 ) // minimum points
         {
-            ROS_INFO("Could not find marker in the scene. There are less than 4 matches. Published homography is NOT valid");
+            ROS_INFO("Could not find marker in the scene. There are less than 10 matches. Published homography is NOT valid");
             marker_found_valid = false;
             publish_marker();
             return;
@@ -895,7 +880,7 @@ namespace itable
 
 int main(int argc, char** argv)
 {
-    ros::init(argc, argv, "itable_service");
+    ros::init(argc, argv, "itable_pkg");
 
     itable::itable_service itable;
 

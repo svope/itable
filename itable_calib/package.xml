@@ -1,13 +1,14 @@
 <?xml version="1.0"?>
 <package>
   <name>itable_calib</name>
-  <version>1.0</version>
+  <version>1.0.0</version>
   <description>The intelligent table projector-kinect2 calibration</description>
 
   <maintainer email="xsvobo91@stud.fit.vutbr.cz">Petr Svoboda</maintainer>
 
-    <author email="xsvobo91@stud.fit.vutbr.cz">Petr Svoboda</author>
+  <author email="xsvobo91@stud.fit.vutbr.cz">Petr Svoboda</author>
 
+  <license> none </license>
 
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>roscpp</build_depend>
