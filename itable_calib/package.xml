@@ -1,17 +1,12 @@
 <?xml version="1.0"?>
 <package>
   <name>itable_calib</name>
-  <version>0.0.1</version>
-  <description>The intelligent table projector kinect2 calibration</description>
+  <version>1.0</version>
+  <description>The intelligent table projector-kinect2 calibration</description>
 
   <maintainer email="xsvobo91@stud.fit.vutbr.cz">Petr Svoboda</maintainer>
 
-  <license>BUT OPEN SOURCE LICENSE</license>
-
-
-  <!-- <url type="website">TBA</url> -->
-
-  <author email="xsvobo91@stud.fit.vutbr.cz">Petr Svoboda</author>
+    <author email="xsvobo91@stud.fit.vutbr.cz">Petr Svoboda</author>
 
 
   <buildtool_depend>catkin</buildtool_depend>
@@ -30,10 +25,6 @@
   <run_depend>tf</run_depend>
   <run_depend>image_transport</run_depend>
 
-
-
-
-  <!-- The export tag contains other, unspecified, tags -->
   <export>
 
 

@@ -1,13 +1,9 @@
 /*
- * Developed by dcgm-robotics@FIT group
- * Author: Michal Kapinus
- * Date: 01.04.2012 (version 0.1)
- *
- * License: BUT OPEN SOURCE LICENSE (http://www.fit.vutbr.cz/~lampa/ipv6/LICENSE)
- *-------------------------------------------------------------------------------
+ * ROS node for kinect2 - projector calibration
+ * Author: Petr Svoboda
+ * Date: 1.5.2016
  */
 
-#pragma once
 #ifndef _ITABLE_CALIB_
 #define _ITABLE_CALIB_
 
@@ -26,32 +22,38 @@
 #include <SDL2/SDL_image.h>
 
 
-namespace itable_calib {
+namespace itable_calib
+{
 
 
 typedef message_filters::Subscriber<sensor_msgs::Image> ImageSubscriber;
 typedef message_filters::sync_policies::ExactTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::CameraInfo> tExactPolicy;
 typedef message_filters::Synchronizer<tExactPolicy> tExactSync;
 
-class iTable_calibration {
-
+class iTable_calibration
+{
+    // Chessboard size
     cv::Size pattern_size;
+    // Projector resolution
     cv::Size projector_resolution;
-
+    // Vector of RGB 2D + depth points
     std::vector< cv::Point3f> collection_camera_plus_depth_points;
-    std::vector< cv::Point2f > collection_SDL_screen_points;
+    // Vector of 2D points in SDL screen
+    std::vector< cv::Point2f> collection_SDL_screen_points;
 
     // Calibration data of Camera
     cv::Mat cam_intrinsic, cam_dist_coeffs;
 
-
-    int max_pairs;
+    // Counter of couples of found chessboards in SDL screen and pointcloud
     int pairs_counter;
+    double delay;
 
-
+    // Flags
+    bool cam_info_set;
     bool find_next_chessboard;
     bool pair_found;
     bool end_calibration;
+    // Pointer to SDL screen data
     SDL_Surface* screen;
 
 
@@ -66,17 +68,20 @@ public:
     void Set_projector_resolution( cv::Size pr) { projector_resolution = pr;}
     double Get_delay() { return delay;}
     cv::Size Get_projector_size() { return projector_resolution;}
+    std::string Get_package_dir_path() { return output_path;}
 
 private:
 
     void ros_init();
 
+    // RGB and depth data callback
     void image_cb(const sensor_msgs::ImageConstPtr& msg_rgb,
                         const sensor_msgs::ImageConstPtr& msg_depth, const sensor_msgs::CameraInfoConstPtr& msg_camerainfo);
 
+    // CameraInfo callback
     void caminfo_callback(const sensor_msgs::CameraInfo& msg_camerainfo);
 
-    bool cam_info_set;
+
     // subscribers for kinect color and depth images
     message_filters::Subscriber<sensor_msgs::CameraInfo> kinect_caminfo_sub;
     message_filters::Subscriber<sensor_msgs::Image> kinect_image_sub;
@@ -89,13 +94,11 @@ private:
     ros::NodeHandle nh_;
     ros::NodeHandle private_handle;
 
-    // topics
+    // topics strings
     std::string rgb_topic;
     std::string depth_topic;
     std::string caminfo_topic;
     std::string output_path;
-
-    double delay;
 };
 
 } // namespace

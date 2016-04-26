@@ -1,16 +1,14 @@
 /*
- * Developed by dcgm-robotics@FIT group
- * Author: Michal Kapinus
- * Date: 01.04.2012 (version 0.1)
- *
- * License: BUT OPEN SOURCE LICENSE (http://www.fit.vutbr.cz/~lampa/ipv6/LICENSE)
- *-------------------------------------------------------------------------------
+ * ROS node for kinect2 - projector calibration
+ * Author: Petr Svoboda
+ * Date: 1.5.2016
  */
 
 
 #include "itable_calib/itable_calib.h"
 
-namespace itable_calib {
+namespace itable_calib
+{
 
     iTable_calibration::iTable_calibration(ros::NodeHandle nh) : nh_(nh)
     {
@@ -36,24 +34,23 @@ namespace itable_calib {
         cv::Mat Kinect_camera_image;
         cv::Mat Kinect_depth_image;
         try
-          {
+        {
             Kinect_camera_image = cv_bridge::toCvShare(msg_rgb, "bgr8")->image;
             Kinect_depth_image = cv_bridge::toCvCopy(msg_depth)->image;
             ROS_INFO_STREAM_ONCE("Color image  width x height " << Kinect_camera_image.cols << " x "<<Kinect_camera_image.rows);
-            ROS_INFO_STREAM_ONCE("Depth image  width x height " << Kinect_depth_image.cols << " x "<<Kinect_depth_image.rows);
-            //cv::imshow("asdf", Kinect_camera_image);
-            //cv::waitKey(10);
-          }
-          catch (cv_bridge::Exception& e)
-          {
+            ROS_INFO_STREAM_ONCE("Depth image  width x height " << Kinect_depth_image.cols  << " x "<<Kinect_depth_image.rows);
+        }
+        catch (cv_bridge::Exception& e)
+        {
             ROS_ERROR("Could not convert from '%s' to 'bgr8'.", msg_rgb->encoding.c_str());
-          }
+        }
 
 
         if ( find_next_chessboard )
         {
             if ( screen == NULL )
                 return;
+
             cv::Mat SDL_screen(screen->h,screen->w,CV_8UC4,screen->pixels);
 
 		
@@ -64,8 +61,10 @@ namespace itable_calib {
             std::vector < cv::Point2f > SDL_screen_points,Kinect_camera_points;
             std::vector < cv::Point3f >Kinect_camera_plus_depth_points;
 
+            // Find chessboard in SDL_screen
             SDL_screen_found = cv::findChessboardCorners(SDL_screen,pattern_size,SDL_screen_points,CV_CALIB_CB_ADAPTIVE_THRESH + CV_CALIB_CB_NORMALIZE_IMAGE + CV_CALIB_CB_FILTER_QUADS);
-	    if ( SDL_screen_found)
+
+            if ( SDL_screen_found)
             {
                 ROS_INFO("Chessboard pattern found at SDL screen");
                 cv::Mat gray_image;
@@ -75,6 +74,7 @@ namespace itable_calib {
                                                                                                 0.0001)); //max epsilon
             }
 
+            // Find chessboard in Kinect RGB
             Kinect_camera_found = cv::findChessboardCorners(Kinect_camera_image,pattern_size,Kinect_camera_points,CV_CALIB_CB_ADAPTIVE_THRESH + CV_CALIB_CB_NORMALIZE_IMAGE + CV_CALIB_CB_FILTER_QUADS);
             if ( Kinect_camera_found)
             {
@@ -85,14 +85,15 @@ namespace itable_calib {
                                                                                                 500, // max number of iterations
                                                                                                 0.0001)); //max epsilon
             }
+
             if ( SDL_screen_found && Kinect_camera_found )
             {
                 ROS_INFO_STREAM("Found a new pair, total: " << pairs_counter + 1 );
                 for ( int i = 0; i < Kinect_camera_points.size() ; i++)
                 {
                     float depth_value = static_cast<float>( Kinect_depth_image.at<unsigned short>(Kinect_camera_points[i].y,Kinect_camera_points[i].x));
-                    cv::Point3d object3D(Kinect_camera_points[i].x,Kinect_camera_points[i].y,depth_value);
-                   Kinect_camera_plus_depth_points.push_back(object3D);
+                    cv::Point3d rgb_plus_depth(Kinect_camera_points[i].x,Kinect_camera_points[i].y,depth_value);
+                    Kinect_camera_plus_depth_points.push_back(rgb_plus_depth);
                 }
 
                 collection_camera_plus_depth_points.insert(collection_camera_plus_depth_points.end(),Kinect_camera_plus_depth_points.begin(),Kinect_camera_plus_depth_points.end());
@@ -111,13 +112,13 @@ namespace itable_calib {
             // pomoci CameraCalibrate
             std::vector< std::vector<cv::Point3f> > arr_of_arr_3D;
             std::vector< std::vector<cv::Point2f> > arr_of_arr_2D;
-            std::vector< cv::Point3f > obj_points;
+            std::vector< cv::Point3f > pointcloud_points;
 
             cv::Mat cameraMatrix2 = cam_intrinsic;
             cv::Mat distCoeffs2 = cam_dist_coeffs;
             std::vector<cv::Mat> rvec2,tvec2;
 
-            cv::Point3f world_point;
+            cv::Point3f pointcloud_point;
             for ( int i = 0; i < collection_camera_plus_depth_points.size(); i++)
             {
 
@@ -131,11 +132,11 @@ namespace itable_calib {
                 float X = (collection_camera_plus_depth_points[i].x - cx) * dist * fx;
                 float Y = (collection_camera_plus_depth_points[i].y - cy) * dist * fy;
 
-                world_point = cv::Point3f(X,Y,dist);
-                obj_points.push_back(world_point);
+                pointcloud_point = cv::Point3f(X,Y,dist);
+                pointcloud_points.push_back(pointcloud_point);
 
             }
-            arr_of_arr_3D.push_back(obj_points);
+            arr_of_arr_3D.push_back(pointcloud_points);
             arr_of_arr_2D.push_back(collection_SDL_screen_points);
 
             
@@ -190,7 +191,7 @@ namespace itable_calib {
         exact_sync_.reset( new tExactSync(tExactPolicy(10), kinect_image_sub, kinect_depth_sub,kinect_caminfo_sub));
         exact_sync_->registerCallback(&iTable_calibration::image_cb, this);
 
-        ROS_INFO("kinect2_calibration node is running");
+        ROS_INFO("itable_calibration node is running");
     }
 
     void iTable_calibration::caminfo_callback(const sensor_msgs::CameraInfo& msg_camerainfo)
@@ -223,12 +224,12 @@ namespace itable_calib {
 }
 
 
-int main(int argc, char **argv) {
-	ros::init(argc, argv, "kinect2_superpixels");
+int main(int argc, char **argv)
+{
+    ros::init(argc, argv, "itable_calib");
 
     itable_calib::iTable_calibration node( (ros::NodeHandle()) );
     node.Set_chessboard_size(cv::Size(4,5));
-    //node.Set_projector_resolution( cv::Size(1280,1024));
 
     /* SDL things */
     SDL_Init(SDL_INIT_VIDEO);
@@ -249,7 +250,7 @@ int main(int argc, char **argv) {
     position.h = 240;
 
     window = SDL_CreateWindow(
-            "An SDL2 window",                  // window title
+            "Itable calibration window",                  // window title
             SDL_WINDOWPOS_UNDEFINED,           // initial x position
             SDL_WINDOWPOS_UNDEFINED,           // initial y position
             screen_width,     // width, in pixels
@@ -261,24 +262,22 @@ int main(int argc, char **argv) {
             std::cerr<< "Could not create window:"<< SDL_GetError() << std::endl;
             return 1;
     }
-    pattern_surface = IMG_Load("/home/artable/svoboda_ws/src/itable_calib/src/pattern1.jpg");
+    pattern_surface = IMG_Load( (node.Get_package_dir_path() + "/data/pattern1.jpg").c_str() );
     if ( pattern_surface == NULL )
     {
-        std::cerr << "Could not load picture " << std::endl;
+        std::cerr << "Could not load picture " << node.Get_package_dir_path() + "/data/pattern1.jpg" << std::endl;
         return 1;
     }
     screen = SDL_GetWindowSurface(window);
     node.Set_SDL_Surface_pointer(screen);
-    //node.screen = screen;
-
 
     while ( quit == false )
     {
 
-	screen = SDL_GetWindowSurface(window);
-	node.Set_SDL_Surface_pointer(screen);
-        
-	while( SDL_PollEvent( &event ) )
+        screen = SDL_GetWindowSurface(window);
+        node.Set_SDL_Surface_pointer(screen);
+
+        while( SDL_PollEvent( &event ) )
         {
             switch (event.type)
             {
@@ -289,14 +288,14 @@ int main(int argc, char **argv) {
             case SDL_KEYDOWN:
                 switch (event.key.keysym.sym)
                 {
-                    case SDLK_LEFT:  position.x -= 5; break;
-                    case SDLK_RIGHT: position.x += 5; break;
-                    case SDLK_UP:    position.y -= 5; break;
-                    case SDLK_DOWN:  position.y += 5; break;
-                    case SDLK_ESCAPE: node.End_calibration();  break;
-                    case SDLK_KP_PLUS:  position.h*=1.07;position.w*=1.07;break;
-                    case SDLK_KP_MINUS: position.h*=0.97;position.w*=0.97;break;
-                    case SDLK_SPACE: capture = true;break;
+                    case SDLK_LEFT:     position.x -= 5; break;
+                    case SDLK_RIGHT:    position.x += 5; break;
+                    case SDLK_UP:       position.y -= 5; break;
+                    case SDLK_DOWN:     position.y += 5; break;
+                    case SDLK_ESCAPE:   node.End_calibration(); break;
+                    case SDLK_KP_PLUS:  position.h*=1.07; position.w*=1.07; break;
+                    case SDLK_KP_MINUS: position.h*=0.97; position.w*=0.97; break;
+                    case SDLK_SPACE:    capture = true; break;
                 }
                 break;
 
@@ -313,7 +312,6 @@ int main(int argc, char **argv) {
         SDL_UpdateWindowSurface(window);
         if ( capture )
         {
-            std::cout << node.Get_delay() << std::endl;
             SDL_Delay( node.Get_delay() );
             node.Start_capturing();
             capture = false;
@@ -330,4 +328,4 @@ int main(int argc, char **argv) {
     }
 
 	return 0;
-}
+} //namespace
