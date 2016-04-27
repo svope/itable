@@ -10,7 +10,7 @@ itable_demo::itable_demo()
 
     prague_trigger.setPosition(380,350);
     sf::Texture* prague_icon = new sf::Texture();
-    if (!prague_icon->loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/maps/prague_icon.png"))
+    if (!prague_icon->loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/maps/prague_icon.png"))
     {
         ROS_ERROR("Cannot load image file ");
     }
@@ -21,18 +21,18 @@ itable_demo::itable_demo()
     brno_trigger.setPosition( 780,730);
 
     sf::Texture* brno_icon = new sf::Texture();
-    if (!brno_icon->loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/maps/brno_icon.png"))
+    if (!brno_icon->loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/maps/brno_icon.png"))
     {
         ROS_ERROR("Cannot load image file ");
     }
     brno_icon->setSmooth(true);
     brno_trigger.setTexture(*brno_icon);
 
-    trig_prague = new Trigger(&window, "/home/artable/svoboda_ws/src/itable_demo/data/square.png", &prague_trigger );
-    trig_brno   = new Trigger(&window, "/home/artable/svoboda_ws/src/itable_demo/data/square.png", &brno_trigger );
+    trig_prague = new Trigger(&window, "/home/petr/catkin_ws/src/itable_demo/data/square.png", &prague_trigger );
+    trig_brno   = new Trigger(&window, "/home/petr/catkin_ws/src/itable_demo/data/square.png", &brno_trigger );
 
     // movies load and positioning
-    if (!movie_prague.openFromFile("/home/artable/svoboda_ws/src/itable_demo/data/prague.mp4"))
+    if (!movie_prague.openFromFile("/home/petr/catkin_ws/src/itable_demo/data/prague.mp4"))
         {
             std::cout <<"neporadilo se nahrat video praha" << std::endl;
         }
@@ -41,14 +41,14 @@ itable_demo::itable_demo()
     float pos_y = win_height - 1080 * tmp;
     movie_prague.fit(0, pos_y / 2.0, win_width, 1080 * tmp);
 
-    if (!movie_brno.openFromFile("/home/artable/svoboda_ws/src/itable_demo/data/brno.mp4"))
+    if (!movie_brno.openFromFile("/home/petr/catkin_ws/src/itable_demo/data/brno.mp4"))
     {
         std::cout <<"neporadilo se nahrat video brno.mp4" << std::endl;
     }
     movie_brno.fit(0, pos_y / 2.0, win_width, 1080 * tmp);
 
     // Font etc
-    if (!font.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/arial.ttf"))
+    if (!font.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/arial.ttf"))
     {
         ROS_ERROR("Could not load font");
     }
@@ -71,6 +71,13 @@ itable_demo::itable_demo()
     text_prague.setColor(sf::Color::White);
     text_prague.setString(L"Praha je hlavní a současně největší město České republiky a 15. největší město Evropské unie.\nLeží mírně na sever od středu Čech na řece Vltavě, uvnitř Středočeského kraje, jehož je \nsprávním centrem, ale jako samostatný kraj není jeho součástí. Je sídlem velké části státních \ninstitucí a množství dalších organizací a firem. Sídlí zde prezident republiky, parlament, vláda,\n ústřední státní orgány a jeden ze dvou vrchních soudů.");
 
+    textB1.setFont(font);
+    textB2.setFont(font);
+    textB3.setFont(font);
+    textP1.setFont(font);
+    textP2.setFont(font);
+    textP3.setFont(font);
+    textP4.setFont(font);
 
     // create quiz
     questions.push_back( question(L"Krušné hory", sf::Vector2f(160,138)) );
@@ -271,8 +278,8 @@ void itable_demo::object_callback(const itable_pkg::objects& msg)
 void itable_demo::create_window(std::string window_name, bool fullscreen )
 {
     sf::VideoMode desktop = sf::VideoMode::getDesktopMode();
-    if ( fullscreen )
-        window =  new sf::RenderWindow(desktop/*sf::VideoMode(win_width,win_height)*/,window_name,sf::Style::Fullscreen);
+    if ( fullscreen && false )
+        window =  new sf::RenderWindow(sf::VideoMode(win_width,win_height),window_name,sf::Style::Fullscreen);
     else
         window = new sf::RenderWindow(sf::VideoMode(win_width,win_height),window_name,sf::Style::Resize);
 
@@ -281,9 +288,15 @@ void itable_demo::create_window(std::string window_name, bool fullscreen )
 
 void itable_demo::load_data()
 {
-    img_files.push_back("/home/artable/svoboda_ws/src/itable_demo/data/maps/brno.png");
-    img_files.push_back("/home/artable/svoboda_ws/src/itable_demo/data/maps/praha.jpg");
-    img_files.push_back("/home/artable/svoboda_ws/src/itable_demo/data/maps/map_CR.png");
+    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/maps/map_CR.png");
+    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/brno/brno1.jpg");
+    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/brno/brno2.jpg");
+    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/brno/brno3.jpg");
+    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/brno/brno4.jpg");
+
+    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/praha/praha.jpg");
+    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/praha/praha1.jpg");
+    img_files.push_back("/home/petr/catkin_ws/src/itable_demo/data/praha/praha2.jpg");
 
     for ( std::vector< std::string >::iterator it = img_files.begin(); it != img_files.end(); it++)
     {
@@ -296,14 +309,21 @@ void itable_demo::load_data()
         textures.push_back( txt );
     }
 
-    brno.setTexture(*(textures[0]));
-    prague.setTexture(*(textures[1]));
-    map_CR.setTexture(*(textures[2]));
+    map_CR.setTexture(*(textures[0]));
+    brno1.setTexture(*(textures[1]));
+    brno2.setTexture(*(textures[2]));
+    brno3.setTexture(*(textures[3]));
+    brno4.setTexture(*(textures[4]));
+
+    prague.setTexture(*(textures[5]));
+    prague1.setTexture(*(textures[6]));
+    prague2.setTexture(*(textures[7]));
+
 
     sf::Vector2f targetSize(win_width, win_height);
 
-    brno.setScale(   targetSize.x / brno.getLocalBounds().width,   targetSize.y / brno.getLocalBounds().height );
-    prague.setScale( targetSize.x / prague.getLocalBounds().width, targetSize.y / prague.getLocalBounds().height);
+    //brno1.setScale(   targetSize.x / brno1.getLocalBounds().width,   targetSize.y / brno1.getLocalBounds().height );
+    //prague.setScale( targetSize.x / prague.getLocalBounds().width, targetSize.y / prague.getLocalBounds().height);
     map_CR.setScale( targetSize.x / map_CR.getLocalBounds().width, targetSize.y / map_CR.getLocalBounds().height);
 
     int offset_x,offset_y;
@@ -315,7 +335,7 @@ void itable_demo::load_data()
 
 
     // quiz
-    if (!CR_mount.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/maps/CR_hory.png"))
+    if (!CR_mount.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/maps/CR_hory.png"))
     {
         ROS_ERROR("Cannot load image file CR_hory");
     }
@@ -328,7 +348,7 @@ void itable_demo::load_data()
     quiz_text.setCharacterSize(90); // in pixels, not points!
     quiz_text.setColor(sf::Color::White);
 
-    if (!panorama_tex.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/maps/panorama.jpg"))
+    if (!panorama_tex.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/maps/panorama.jpg"))
     {
         ROS_ERROR("Cannot load image panorama.jpg");
     }
@@ -336,7 +356,7 @@ void itable_demo::load_data()
     panorama.setTexture(panorama_tex);
     panorama.setPosition(0,0);
 
-    if ( !sprite_texture.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/square.png") )
+    if ( !sprite_texture.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/square.png") )
     {
         ROS_ERROR("Cannot load sprite" );
     }
@@ -344,12 +364,12 @@ void itable_demo::load_data()
     sprite.setTexture(sprite_texture);
 
     // sounds
-    if (!succ.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/success.wav"))
+    if (!succ.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/success.wav"))
     {
         ROS_ERROR("Cannot open success.wav file");
     }
 
-    if (!fail.loadFromFile("/home/artable/svoboda_ws/src/itable_demo/data/fail.wav"))
+    if (!fail.loadFromFile("/home/petr/catkin_ws/src/itable_demo/data/fail.wav"))
     {
         ROS_ERROR("Cannot open fail.wav file");
     }
@@ -759,8 +779,46 @@ void itable_demo::game()
         break;
 
     case s_prague_hist:
+
+        textP1.setString(L"Praha je hlavní a současně největší\nměsto České republiky");
+        textP1.setCharacterSize( 35 );
+        textP1.setColor( sf::Color::White );
+        textP1.setPosition( 10,10);
+        window->draw(textP1);
+
+        textP2.setString(L"Žije v ní asi  1 300 000\nobyvatel");
+        textP2.setCharacterSize( 35 );
+        textP2.setColor( sf::Color::White );
+        textP2.setPosition( 800,100);
+        window->draw(textP2);
+
+
+        textP3.setString(L"Historické jádro patří do seznamu\nsvětového dědictví UNESCO");
+        textP3.setCharacterSize( 35 );
+        textP3.setColor( sf::Color::White );
+        textP3.setPosition( 20 ,550);
+        window->draw(textP3);
+
+        textP4.setString(L"Sídlí zde  prezident republiky,\nparlament, vláda, ústřední státní\norgány a jeden ze dvou vrchních\nsoudů");
+        textP4.setCharacterSize( 35 );
+        textP4.setColor( sf::Color::White );
+        textP4.setPosition( 700 ,800);
+        window->draw(textP4);
+
+        prague2.setScale(0.7,0.7);
+        prague2.setPosition( 0, 100);
+        window->draw(prague2);
+
+        prague1.setScale(0.9,0.9);
+        prague1.setPosition(10, 700);
+        window->draw(prague1);
+
+        prague.setScale(0.30,0.30);
+        prague.setPosition( 660, 320);
         window->draw(prague);
-        window->draw(text_prague);
+
+
+
         if ( !objects.empty() )
         {
             if ( last_icon_id == 2 && icon_valid())
@@ -788,7 +846,40 @@ void itable_demo::game()
         break;
 
     case s_brno_hist:
-        window->draw(brno);
+        brno3.setScale( 0.23, 0.23);
+        brno3.setPosition( 0,0);
+        window->draw( brno3 );
+
+        textB1.setString(L"Brno je největší město na Moravě\na bývalé hlavní město Moravy");
+        textB1.setCharacterSize( 35 );
+        textB1.setColor( sf::Color::White );
+        textB1.setPosition( 700,15);
+        window->draw(textB1);
+
+        brno1.setScale( 0.6 , 0.6 );
+        brno1.setPosition( 600, 180);
+        window->draw(brno1);
+
+        brno2.setScale( 0.65, 0.65);
+        brno2.setPosition ( 850, 730);
+        window->draw ( brno2);
+
+        brno4.setScale( 0.58, 0.58);
+        brno4.setPosition ( 0, 640);
+        window->draw ( brno4);
+
+        textB2.setString(L"V Brně sídlí celkem\n33 fakult \n13 různých univerzit\na vysokých škol");
+        textB2.setCharacterSize( 35 );
+        textB2.setColor( sf::Color::White );
+        textB2.setPosition( 500,730);
+        window->draw(textB2);
+
+        textB3.setString(L"Brno je centrem soudní moci\nČeské republiky, stalo se totiž\nsídlem jak Ústavního soudu, tak\nNejvyššího soudu, Nejvyššího\nsprávního soudu i Nejvyššího\nstátního zastupitelství");
+        textB3.setCharacterSize( 35 );
+        textB3.setColor( sf::Color::White );
+        textB3.setPosition( 30,330);
+        window->draw(textB3);
+
         if ( !objects.empty() )
         {
             if ( last_icon_id == 2 && icon_valid() )

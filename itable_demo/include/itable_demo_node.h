@@ -162,14 +162,18 @@ public:
 
     // game states
     enum game_states { s_init, s_prague, s_brno_hist, s_brno_movie, s_prague_hist, s_prague_movie , s_quiz, s_asked,s_answered,s_not_answered, s_map_search};
-    game_states game_state { s_init };
+    game_states game_state { s_prague_hist };
     bool demo_running { true };
 
     // Images to load
     std::vector< std::string > img_files;
     std::vector< sf::Texture* > textures;
     sf::Sprite map_CR;
-    sf::Sprite prague,brno;
+    sf::Sprite prague,prague1,prague2,brno1,brno2,brno3,brno4;
+
+    // Info texts
+    sf::Text textB1,textB2,textB3;
+    sf::Text textP1,textP2,textP3,textP4;
 
     // Movies to load
     sfe::Movie movie_brno;
