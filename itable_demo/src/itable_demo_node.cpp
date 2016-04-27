@@ -278,8 +278,8 @@ void itable_demo::object_callback(const itable_pkg::objects& msg)
 void itable_demo::create_window(std::string window_name, bool fullscreen )
 {
     sf::VideoMode desktop = sf::VideoMode::getDesktopMode();
-    if ( fullscreen && false )
-        window =  new sf::RenderWindow(sf::VideoMode(win_width,win_height),window_name,sf::Style::Fullscreen);
+    if ( fullscreen )
+        window =  new sf::RenderWindow(desktop/*sf::VideoMode(win_width,win_height)*/,window_name,sf::Style::Fullscreen);
     else
         window = new sf::RenderWindow(sf::VideoMode(win_width,win_height),window_name,sf::Style::Resize);
 
