@@ -124,10 +124,16 @@ private:
     cv::Mat proj_cam_mat,dist_coeffs,rot_vec,trans_vec;
     itable_pkg::proj_cam_data proj_cam_msg;
 
+    // Projector info
+    int projector_width;
+    int projector_height;
+
     // Homography ~ marker data
     itable_pkg::marker_location marker_msg;
     cv::Mat marker_homography;
     cv::Mat marker_img;
+    cv::Mat descriptors_marker;
+    std::vector<cv::KeyPoint> keypoints_marker;
     std::string marker_path;
     double marker_timer;
     double recalculate_marker_time { 4.0 };

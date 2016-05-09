@@ -7,10 +7,10 @@
 // #define MASK_DEBUG
 
 // Debugging pointcloud to RGB projection
-//#define PCL2RGB_DEBUG
+// #define PCL2RGB_DEBUG
 
 // Debugging object pcl to projector space projection
-//#define OBJECT_DEBUG
+// #define OBJECT_DEBUG
 
 namespace itable
 {
@@ -30,8 +30,10 @@ namespace itable
         std::string temp;
 
         // get parameters from launch file
-        private_handle.getParam("topics_quality"    , topics_quality);
+        private_handle.getParam("topics_quality"    ,topics_quality);
         private_handle.getParam("package_dir_path"  ,package_dir_path);
+        private_handle.getParam("projector_width"   ,projector_width);
+        private_handle.getParam("projector_height"  ,projector_height);
         // Marker
         private_handle.getParam("calculate_marker"  ,calculate_marker);
         private_handle.getParam("marker_path"       ,marker_path);
@@ -138,6 +140,8 @@ namespace itable
 
         pcl::fromROSMsg (*msg_pointcloud, *cloud_ptr);
 
+        //pcl::io::savePCDFileASCII ("/home/petr/hole.pcd", *cloud_ptr);
+
         // Create the filtering object - threshold
         pcl::PassThrough<pcl::PointXYZ> pass_through;
         pass_through.setInputCloud (cloud_ptr);
@@ -202,7 +206,7 @@ namespace itable
 
 
 #ifdef MASK_DEBUG
-        cv::Mat proj = cv::Mat(800,1280, CV_8U, cvScalar(0.));
+        cv::Mat proj = cv::Mat(projector_height,projector_width, CV_8U, cvScalar(0.));
         for ( int i =0;i < mask_points.size() ; i++)
             proj.at<uchar>( mask_points[i].y,mask_points[i].x) = 255;
 
@@ -364,7 +368,6 @@ namespace itable
             depths_sum += (*cloud_lowest_score)[i].z;
             // depths.push_back( (*cloud_lowest_score)[i].z );
         }
-        ROS_ERROR("%f", depths_sum );
         depths_sum /= static_cast<float>( cloud_lowest_score->size() );
 /*
         for ( int i = 0; i < boxx.size() ; i++ )
@@ -425,7 +428,7 @@ namespace itable
 
 #ifdef OBJECT_DEBUG
 
-        cv::Mat screen = cv::Mat::zeros(1024, 1280, CV_32F);
+        cv::Mat screen = cv::Mat::zeros(projector_height, projector_width, CV_32F);
         for ( int i = 0;i < projected_points.size(); i++)
         {
             circle(screen, cv::Point2f(projected_points[i].x,projected_points[i].y), 5, cv::Scalar(255,0,0,255));
@@ -455,14 +458,20 @@ namespace itable
     void itable_service::recalculate_mask(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mask, cv::Mat rgb_img)
     {
 
+        pcl::VoxelGrid<pcl::PointXYZ> vg;
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
+        vg.setInputCloud (cloud_mask);
+        vg.setLeafSize (0.015f, 0.015f, 0.015f);
+        vg.filter (*cloud_filtered);
+
         cv::Mat bw = cv::Mat(rgb_img.size().height,rgb_img.size().width, CV_8U, cvScalar(0.));
 
         std::vector< cv::Point2f > projected_points;
         std::vector< cv::Point3f > cloud_points;
 
-        for ( int i = 0; i < cloud_mask->size(); i++)
+        for ( int i = 0; i < cloud_filtered->size(); i++)
         {
-            pcl::PointXYZ point = (*cloud_mask)[i];
+            pcl::PointXYZ point = (*cloud_filtered)[i];
             if ( pcl::isFinite(point) )
             {
                 cloud_points.push_back( cv::Point3f(point.x,point.y,point.z) );
@@ -483,10 +492,10 @@ namespace itable
             return;
         }
 
-        cv::Mat bw2 = cv::Mat(1024,1280, CV_8U, cvScalar(0.));
+        cv::Mat bw2 = cv::Mat(projector_height,projector_width, CV_8U, cvScalar(0.));
         for( std::vector< cv::Point2f >::iterator it = projected_points.begin() ; it != projected_points.end() ; it++ )
         {
-            if ( it->x < 1280 && it->y < 1024
+            if ( it->x < projector_width && it->y < projector_height
                 && it->x > 0 && it->y > 0 )
                         bw2.at<uchar>( it->y, it->x) = 255;
         }
@@ -496,7 +505,7 @@ namespace itable
 
         cv::Mat bw3;
 
-        cv::dilate(bw2, bw3, cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(5,5)));
+        cv::dilate(bw2, bw3, cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(50,50)));
 /*
         cv::namedWindow( "BW1", cv::WINDOW_AUTOSIZE );
         cv::imshow( "BW1", bw);
@@ -509,7 +518,7 @@ namespace itable
         cv::waitKey(0);
 */
         std::vector< std::vector< cv::Point> > contours;
-        findContours(bw3, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
+        findContours(bw3, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE/*CV_CHAIN_APPROX_NONE*/);
 
         /*
         std::vector< std::vector< cv::Point> > contours2;
@@ -525,24 +534,26 @@ namespace itable
 
         //std::vector< std::vector<cv::Point> > convex_hulls (contours.size());
         //convex_hulls.clear();
+
         convex_hulls.resize(contours.size());
         for( int i = 0; i < contours.size(); i++ )
         {
             convexHull( contours[i], convex_hulls[i], true );
         }
-/*
+
+        /*
         for ( int i = 0; i < convex_hulls.size() ; i++)
         {
-           cv::drawContours(bw2, convex_hulls, i, cv::Scalar(255,0,255,255));
+           cv::drawContours(bw3, convex_hulls, i, cv::Scalar(255,0,255,255));
         }
 
         cv::namedWindow( "RGB with circles", cv::WINDOW_AUTOSIZE );
         cv::resizeWindow("RGB with circles", 1024, 768);
-        cv::imshow( "RGB with circles", bw2);
+        cv::imshow( "RGB with circles", bw3);
         cv::resizeWindow("RGB with circles", 1024, 768);
 
         cv::waitKey(0);
-*/
+        */
 
         publish_mask();
         ROS_INFO("Mask recalculated");
@@ -703,8 +714,18 @@ namespace itable
                 marker_loaded = false;
                 ROS_ERROR("Could NOT load marker image file %s. Published homography matrix will be invalid",marker_path.c_str());
             }
-            else
+            else // set flag and calculate keypoints + feature vector
+            {
                 marker_loaded = true;
+                cv::SurfFeatureDetector detector( 800 );
+                std::vector<cv::KeyPoint> keypoints_marker;
+
+                detector.detect( marker_img, keypoints_marker );
+
+                // Calculate descriptors (feature vectors)
+                cv::SurfDescriptorExtractor extractor;
+                extractor.compute( marker_img, keypoints_marker, descriptors_marker );
+            }
 
         }
 
@@ -729,16 +750,16 @@ namespace itable
             return;
         // Detect keypoint with SURF det.
         cv::SurfFeatureDetector detector( 800 );
-        std::vector<cv::KeyPoint> keypoints_marker, keypoints_scene;
+        std::vector<cv::KeyPoint> keypoints_scene;//keypoints_marker,
 
-        detector.detect( marker_img, keypoints_marker );
+        //detector.detect( marker_img, keypoints_marker );
         detector.detect( rgb_img, keypoints_scene );
 
         // Calculate descriptors (feature vectors)
         cv::SurfDescriptorExtractor extractor;
-        cv::Mat descriptors_marker, descriptors_scene;
+        cv::Mat descriptors_scene;//descriptors_marker,
 
-        extractor.compute( marker_img, keypoints_marker, descriptors_marker );
+        //extractor.compute( marker_img, keypoints_marker, descriptors_marker );
         extractor.compute( rgb_img, keypoints_scene, descriptors_scene );
 
         // Matching descriptor vectors using FLANN matcher + KNN

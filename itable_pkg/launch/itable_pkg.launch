@@ -2,10 +2,12 @@
 
   <arg name="topics_quality"    default="qhd"/>
   <arg name="package_dir_path"  default="$(find itable_pkg)/data/"/>
+  <arg name="projector_width"   default="1280"/>
+  <arg name="projector_height"  default="1024"/>
   
   <!-- Marker -->
   <!-- should be marker position + homography matrix calculated? -->
-  <arg name="calculate_marker" 	default="true"/>
+  <arg name="calculate_marker" 	default="false"/>
   <!-- Path to marker image file -->
   <arg name="marker_path" 		default="$(find itable_pkg)/data/marker.png"/>
   <!-- after how many seconds should be marker position recalculated -->
@@ -24,7 +26,7 @@
   
   <!-- Object -->
   <!-- should object be detected? -->
-  <arg name="calculate_object" 	default="true"/>
+  <arg name="calculate_object" 	default="false"/>
   <!-- mode: marker+offset - Objects will be detected in range FROM marker depth - object_offset depth TO marker depth [mm]. If no marker is found, do nothing-->
   <!-- mode: static - Objects will be detected in range FROM min_cloud_depth TO max_cloud_depth [mm]-->
   <!-- mode: auto - If marker is valid then mode=="marker+offset", else mode=="static"-->
@@ -40,6 +42,8 @@
   <node pkg="itable_pkg" type="itable_pkg_node" name="itable_pkg" output="screen">
 	<param name="topics_quality"    type="str"    value="$(arg topics_quality)"/>
     <param name="package_dir_path"  type="str"    value="$(arg package_dir_path)"/>
+    <param name="projector_width"   type="int"    value="$(arg projector_width)"/>
+    <param name="projector_height"  type="int"    value="$(arg projector_height)"/>
     
     <param name="calculate_marker"  type="bool"   value="$(arg calculate_marker)"/>
     <param name="marker_path"       type="str"    value="$(arg marker_path)"/>
