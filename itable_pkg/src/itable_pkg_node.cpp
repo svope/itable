@@ -140,7 +140,7 @@ namespace itable
 
         pcl::fromROSMsg (*msg_pointcloud, *cloud_ptr);
 
-        //pcl::io::savePCDFileASCII ("/home/petr/hole.pcd", *cloud_ptr);
+
 
         // Create the filtering object - threshold
         pcl::PassThrough<pcl::PointXYZ> pass_through;
@@ -457,21 +457,14 @@ namespace itable
 
     void itable_service::recalculate_mask(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mask, cv::Mat rgb_img)
     {
-
-        pcl::VoxelGrid<pcl::PointXYZ> vg;
-        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered (new pcl::PointCloud<pcl::PointXYZ>);
-        vg.setInputCloud (cloud_mask);
-        vg.setLeafSize (0.015f, 0.015f, 0.015f);
-        vg.filter (*cloud_filtered);
-
         cv::Mat bw = cv::Mat(rgb_img.size().height,rgb_img.size().width, CV_8U, cvScalar(0.));
 
         std::vector< cv::Point2f > projected_points;
         std::vector< cv::Point3f > cloud_points;
 
-        for ( int i = 0; i < cloud_filtered->size(); i++)
+        for ( int i = 0; i < cloud_mask->size(); i++)
         {
-            pcl::PointXYZ point = (*cloud_filtered)[i];
+            pcl::PointXYZ point = (*cloud_mask)[i];
             if ( pcl::isFinite(point) )
             {
                 cloud_points.push_back( cv::Point3f(point.x,point.y,point.z) );
@@ -505,22 +498,25 @@ namespace itable
 
         cv::Mat bw3;
 
-        cv::dilate(bw2, bw3, cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(50,50)));
+        cv::dilate(bw2, bw3, cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(5,5)));
 /*
         cv::namedWindow( "BW1", cv::WINDOW_AUTOSIZE );
-        cv::imshow( "BW1", bw);
+        cv::imshow( "BW1", bw2);
         cv::waitKey(0);
 
         cv::namedWindow( "BW", cv::WINDOW_AUTOSIZE );
-        cv::imshow( "BW", bw2);
-        cv::resizeWindow("BW", 1024, 768);
+        cv::imshow( "BW", bw3);
 
         cv::waitKey(0);
 */
         std::vector< std::vector< cv::Point> > contours;
-        findContours(bw3, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE/*CV_CHAIN_APPROX_NONE*/);
+        findContours(bw3, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
+/*
+        cv::namedWindow( "BW33", cv::WINDOW_AUTOSIZE );
+        cv::imshow( "BW33", bw4);
+        cv::waitKey(0);
 
-        /*
+
         std::vector< std::vector< cv::Point> > contours2;
 
         // Reducing amount of contours...
@@ -541,7 +537,7 @@ namespace itable
             convexHull( contours[i], convex_hulls[i], true );
         }
 
-        /*
+/*
         for ( int i = 0; i < convex_hulls.size() ; i++)
         {
            cv::drawContours(bw3, convex_hulls, i, cv::Scalar(255,0,255,255));
@@ -553,7 +549,7 @@ namespace itable
         cv::resizeWindow("RGB with circles", 1024, 768);
 
         cv::waitKey(0);
-        */
+*/
 
         publish_mask();
         ROS_INFO("Mask recalculated");
