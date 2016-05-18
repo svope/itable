@@ -8,7 +8,7 @@
 
   <author email="xsvobo91@stud.fit.vutbr.cz">Petr Svoboda</author>
 
-  <license> none </license>
+  <license> http://www.fit.vutbr.cz/~lampa/ipv6/LICENSE </license>
 
   <buildtool_depend>catkin</buildtool_depend>
   <build_depend>roscpp</build_depend>

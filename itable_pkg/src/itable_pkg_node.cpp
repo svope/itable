@@ -11,7 +11,6 @@
 
 // Debugging object pcl to projector space projection
 // #define OBJECT_DEBUG
-
 namespace itable
 {
     itable_service::itable_service()
@@ -140,13 +139,19 @@ namespace itable
 
         pcl::fromROSMsg (*msg_pointcloud, *cloud_ptr);
 
-
+        //pcl::io::savePCDFileASCII ("/home/petr/hole.pcd", *cloud_ptr);
+/*
+        pcl::PassThrough<pcl::PointXYZ> pass_through1;
+        pass_through1.setInputCloud (cloud_ptr);
+        pass_through1.setFilterLimits ( -0.33,0.33);
+        pass_through1.setFilterFieldName ("y");
+        pass_through1.filter (*after_passthrough);
+*/
 
         // Create the filtering object - threshold
         pcl::PassThrough<pcl::PointXYZ> pass_through;
         pass_through.setInputCloud (cloud_ptr);
         pass_through.setFilterFieldName ("z");
-
 
         if ( calculate_object )
         {
@@ -457,6 +462,7 @@ namespace itable
 
     void itable_service::recalculate_mask(pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_mask, cv::Mat rgb_img)
     {
+
         cv::Mat bw = cv::Mat(rgb_img.size().height,rgb_img.size().width, CV_8U, cvScalar(0.));
 
         std::vector< cv::Point2f > projected_points;
@@ -501,22 +507,19 @@ namespace itable
         cv::dilate(bw2, bw3, cv::getStructuringElement(cv::MORPH_ELLIPSE,cv::Size(5,5)));
 /*
         cv::namedWindow( "BW1", cv::WINDOW_AUTOSIZE );
-        cv::imshow( "BW1", bw2);
+        cv::imshow( "BW1", bw);
         cv::waitKey(0);
 
         cv::namedWindow( "BW", cv::WINDOW_AUTOSIZE );
-        cv::imshow( "BW", bw3);
+        cv::imshow( "BW", bw2);
+        cv::resizeWindow("BW", 1024, 768);
 
         cv::waitKey(0);
 */
         std::vector< std::vector< cv::Point> > contours;
-        findContours(bw3, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE);
-/*
-        cv::namedWindow( "BW33", cv::WINDOW_AUTOSIZE );
-        cv::imshow( "BW33", bw4);
-        cv::waitKey(0);
+        findContours(bw3, contours, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE/*CV_CHAIN_APPROX_NONE*/);
 
-
+        /*
         std::vector< std::vector< cv::Point> > contours2;
 
         // Reducing amount of contours...
@@ -537,7 +540,7 @@ namespace itable
             convexHull( contours[i], convex_hulls[i], true );
         }
 
-/*
+        /*
         for ( int i = 0; i < convex_hulls.size() ; i++)
         {
            cv::drawContours(bw3, convex_hulls, i, cv::Scalar(255,0,255,255));
@@ -549,7 +552,7 @@ namespace itable
         cv::resizeWindow("RGB with circles", 1024, 768);
 
         cv::waitKey(0);
-*/
+        */
 
         publish_mask();
         ROS_INFO("Mask recalculated");
@@ -746,16 +749,16 @@ namespace itable
             return;
         // Detect keypoint with SURF det.
         cv::SurfFeatureDetector detector( 800 );
-        std::vector<cv::KeyPoint> keypoints_scene;//keypoints_marker,
+        std::vector<cv::KeyPoint> keypoints_marker, keypoints_scene;
 
-        //detector.detect( marker_img, keypoints_marker );
+        detector.detect( marker_img, keypoints_marker );
         detector.detect( rgb_img, keypoints_scene );
 
         // Calculate descriptors (feature vectors)
         cv::SurfDescriptorExtractor extractor;
-        cv::Mat descriptors_scene;//descriptors_marker,
+        cv::Mat descriptors_marker, descriptors_scene;
 
-        //extractor.compute( marker_img, keypoints_marker, descriptors_marker );
+        extractor.compute( marker_img, keypoints_marker, descriptors_marker );
         extractor.compute( rgb_img, keypoints_scene, descriptors_scene );
 
         // Matching descriptor vectors using FLANN matcher + KNN

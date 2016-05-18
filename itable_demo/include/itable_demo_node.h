@@ -68,6 +68,7 @@ class Trigger
 public:
     Trigger(sf::RenderWindow** win,std::string file_path, sf::Sprite* cs);
     bool update( object obj );
+    void timer_restart() { timer.restart();}
     sf::Sprite* draw() { return circles; }
     std::string getIcon( ) { return icon_name;}
     bool is_ticking() { return ticking;}
@@ -125,7 +126,7 @@ private:
     cv::Point3f backproject_pixel_to_3D( cv:: Point2f cam_2D, float depth);
     cv::Point2f bitmap_to_projector( int x, int y);
     bool icon_valid() { return icon_timer.getElapsedTime().asSeconds() < 0.4f ? true : false;}
-    bool object_valid() { return object_timer.getElapsedTime().asSeconds() < 0.2f ? true : false;}
+    bool object_valid() { return object_timer.getElapsedTime().asSeconds() < 0.3f ? true : false;}
 
     // SFML
     sf::RenderWindow* window;
@@ -162,7 +163,7 @@ public:
 
     // game states
     enum game_states { s_init, s_prague, s_brno_hist, s_brno_movie, s_prague_hist, s_prague_movie , s_quiz, s_asked,s_answered,s_not_answered, s_map_search};
-    game_states game_state { s_prague_hist };
+    game_states game_state { s_init };
     bool demo_running { true };
 
     // Images to load

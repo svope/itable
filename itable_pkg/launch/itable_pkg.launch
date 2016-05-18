@@ -11,7 +11,7 @@
   <!-- Path to marker image file -->
   <arg name="marker_path" 		default="$(find itable_pkg)/data/marker.png"/>
   <!-- after how many seconds should be marker position recalculated -->
-  <arg name="recal_marker_time" default="0.5"/>
+  <arg name="recal_marker_time" default="3"/>
   
   <!-- Mask -->
   <!-- should be mask calculated? -->
@@ -26,17 +26,17 @@
   
   <!-- Object -->
   <!-- should object be detected? -->
-  <arg name="calculate_object" 	default="true"/>
+  <arg name="calculate_object" 	default="false"/>
   <!-- mode: marker+offset - Objects will be detected in range FROM marker depth - object_offset depth TO marker depth [mm]. If no marker is found, do nothing-->
   <!-- mode: static - Objects will be detected in range FROM min_cloud_depth TO max_cloud_depth [mm]-->
   <!-- mode: auto - If marker is valid then mode=="marker+offset", else mode=="static"-->
   <!-- min, max depth for cloud in which objects will be searched -->
   <arg name="object_mode" 		default="static"/>
   <arg name="object_offset" 	default="200"/>
-  <arg name="min_cloud_depth" 	default="1200"/>
+  <arg name="min_cloud_depth" 	default="1201"/>
   <arg name="max_cloud_depth" 	default="1500"/>
   <!-- Parametr of method ICP - MaxCorrespondenceDistance. Could be usefull when no object is found -->
-  <arg name="max_corr_distance"				default="0.85" />
+  <arg name="max_corr_distance"				default="0.8" />
 
   
   <node pkg="itable_pkg" type="itable_pkg_node" name="itable_pkg" output="screen">
